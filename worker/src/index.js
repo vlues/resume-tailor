@@ -75,6 +75,11 @@ async function fetchJob(body, cors) {
     return json({ error: 'bad_url', message: 'That doesn’t look like a link. Paste the full job URL.' }, 400, cors);
   }
 
+  // Dedicated adapters for the big ATS platforms — their pages often block
+  // robots or render with JS, but they all expose public JSON/guest endpoints.
+  const adapted = await tryAdapters(parsed);
+  if (adapted) return json(adapted, 200, cors);
+
   let html = '';
   try {
     const resp = await fetch(jobUrl, {
@@ -108,13 +113,86 @@ async function fetchJob(body, cors) {
   if (main && stripTags(main[0]).length > 300) scope = main[0];
   const text = stripTags(scope);
   if (text.length < 300) {
+    const isLinkedIn = /linkedin\.com$/.test(parsed.hostname.replace(/^www\./, ''));
     return json({
       error: 'thin_page',
-      message: 'That site hides the job details from robots. Copy the job description text and paste it instead — works every time.',
+      message: isLinkedIn
+        ? 'LinkedIn wouldn’t share this one. Easy fix: open the job, tap “See more”, select and copy the whole description, then paste it below — works every time.'
+        : 'That site hides the job details from robots. Copy the job description text and paste it instead — works every time.',
     }, 422, cors);
   }
   // Cap so a giant page doesn't blow the prompt.
   return json({ jobText: text.slice(0, 20000), title: titleFrom(html), company: '', source: 'page' }, 200, cors);
+}
+
+async function tryAdapters(u) {
+  const host = u.hostname.replace(/^www\./, '');
+  try {
+    // LinkedIn: /jobs/view/<id> or any /jobs/... page with ?currentJobId=<id>
+    if (host.endsWith('linkedin.com')) {
+      const id = (u.pathname.match(/\/jobs\/view\/(?:[^/]*-)?(\d{6,})/) || [])[1]
+        || u.searchParams.get('currentJobId');
+      if (id) {
+        const r = await fetch(`https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
+        });
+        if (r.ok) {
+          const html = await r.text();
+          const desc = /class="[^"]*show-more-less-html__markup[^"]*"[^>]*>([\s\S]*?)<\/div>/.exec(html);
+          const title = /class="top-card-layout__title[^"]*"[^>]*>([\s\S]*?)<\//.exec(html) || /<title[^>]*>([\s\S]*?)<\/title>/.exec(html);
+          const company = /class="topcard__org-name-link[^"]*"[^>]*>([\s\S]*?)<\//.exec(html);
+          const text = desc ? stripTags(desc[1]) : '';
+          if (text.length > 200) {
+            return { jobText: text.slice(0, 20000), title: title ? stripTags(title[1]) : '', company: company ? stripTags(company[1]) : '', source: 'linkedin' };
+          }
+        }
+      }
+    }
+    // Greenhouse: boards.greenhouse.io/<board>/jobs/<id> (also job-boards.greenhouse.io)
+    if (host.endsWith('greenhouse.io')) {
+      const m = u.pathname.match(/\/([^/]+)\/jobs\/(\d+)/);
+      if (m) {
+        const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${m[1]}/jobs/${m[2]}`);
+        if (r.ok) {
+          const d = await r.json();
+          const text = stripTags(unescapeHtml(d.content || ''));
+          if (text.length > 200) return { jobText: text.slice(0, 20000), title: d.title || '', company: (d.company_name || m[1]), source: 'greenhouse' };
+        }
+      }
+    }
+    // Lever: jobs.lever.co/<company>/<posting-id>
+    if (host === 'jobs.lever.co') {
+      const m = u.pathname.match(/^\/([^/]+)\/([0-9a-f-]{16,})/i);
+      if (m) {
+        const r = await fetch(`https://api.lever.co/v0/postings/${m[1]}/${m[2]}`);
+        if (r.ok) {
+          const d = await r.json();
+          const lists = (d.lists || []).map(l => `${l.text}\n${stripTags(l.content || '')}`).join('\n\n');
+          const text = [d.descriptionPlain || stripTags(d.description || ''), lists, d.additionalPlain || ''].filter(Boolean).join('\n\n').trim();
+          if (text.length > 200) return { jobText: text.slice(0, 20000), title: d.text || '', company: m[1], source: 'lever' };
+        }
+      }
+    }
+    // SmartRecruiters: jobs.smartrecruiters.com/<Company>/<id>-slug
+    if (host === 'jobs.smartrecruiters.com') {
+      const m = u.pathname.match(/^\/([^/]+)\/(\d{9,})/);
+      if (m) {
+        const r = await fetch(`https://api.smartrecruiters.com/v1/companies/${m[1]}/postings/${m[2]}`);
+        if (r.ok) {
+          const d = await r.json();
+          const sec = d.jobAd && d.jobAd.sections || {};
+          const text = ['jobDescription', 'qualifications', 'additionalInformation', 'companyDescription']
+            .map(k => sec[k] ? `${sec[k].title || ''}\n${stripTags(sec[k].text || '')}` : '').filter(Boolean).join('\n\n').trim();
+          if (text.length > 200) return { jobText: text.slice(0, 20000), title: d.name || '', company: (d.company && d.company.name) || m[1], source: 'smartrecruiters' };
+        }
+      }
+    }
+  } catch { /* fall through to generic fetch */ }
+  return null;
+}
+
+function unescapeHtml(s) {
+  return String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&');
 }
 
 function extractJobPosting(html) {
@@ -162,6 +240,15 @@ ABSOLUTE RULES — HONESTY:
 - You MAY rephrase, reorder, quantify only with numbers already present, merge or trim bullets, rewrite the summary, and mirror the job posting's exact terminology when it truthfully describes the candidate's real experience (e.g. "helped customers" → "customer support" is fine; adding "Zendesk" when it isn't in the resume is NOT).
 - If an important job requirement has no honest match in the resume, list it in missing_keywords instead of faking it.
 
+OPTIMIZE FOR AI AND HUMAN SCREENERS (both skim):
+- Front-load: the summary's first line and the first bullet of the most recent job must hit the posting's top requirement.
+- Mirror the posting's exact phrasing for its top 5-8 requirements wherever truthful (e.g. if it says "customer success," don't only say "customer service").
+- Include both acronym and spelled-out forms of any term the posting uses (CRM / customer relationship management).
+- Quantify with real numbers already in the resume; a bullet with a number beats an adjective.
+- One clean job title line per role; if the real title is unusual, keep it but add a truthful clarifier in the bullet, never a fake title.
+- Remove or de-emphasize content irrelevant to THIS job rather than padding.
+- For remote roles: surface anything that truthfully signals remote-readiness (self-managed work, written communication, home-office tools, schedule flexibility).
+
 ATS-SAFE OUTPUT:
 - Plain text only: no tables, columns, text boxes, images, emoji, or special glyphs. Standard section headers (SUMMARY, SKILLS, EXPERIENCE, EDUCATION, CERTIFICATIONS). Simple "-" bullets. Job entries as: Title | Company | Location | Dates.
 - Include the exact keywords/phrases from the posting (spelled the same way, including both the acronym and spelled-out form when relevant) wherever they are truthful.
@@ -178,6 +265,8 @@ Respond ONLY with valid JSON (no markdown fences) in exactly this shape:
   "missing_keywords": [{"term": "requirement with no honest match", "suggestion": "what she could truthfully do or say about it"}],
   "ats_check": [{"item": "check name", "pass": true, "note": "one line"}],
   "cover_note": "a short 3-4 sentence message she can paste into an application's 'anything else' box or a quick email, warm and specific to this job",
+  "tips": ["3-4 short, concrete tips for THIS specific application — e.g. what the screening will likely ask, which of her strengths to lead with if there's a phone screen, anything time-sensitive in the posting"],
+  "candidate_name": "the candidate's name exactly as it appears on the resume",
   "job_title": "the job's title",
   "company": "the company name or empty string"
 }

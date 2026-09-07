@@ -171,6 +171,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     </div>
 
     <div class="pane" id="paneChanges">
+      <div id="outTips"></div>
       <div id="outChanges"></div>
       <div id="outKeywords" style="margin-top:14px"></div>
       <div id="outMissing" style="margin-top:14px"></div>
@@ -185,6 +186,13 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <div class="copy-note" id="outNote"></div>
       <div class="row"><button class="btn small good" id="copyNoteBtn">📋 Copy note</button></div>
     </div>
+  </section>
+
+  <!-- history -->
+  <section class="card" id="historyCard" style="display:none">
+    <h2>🕘 Recent jobs</h2>
+    <p class="hint">Each one keeps its own tailored resume — tap to reopen.</p>
+    <div id="historyList"></div>
   </section>
 
   <footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
@@ -328,11 +336,14 @@ $('tailorBtn').onclick = async () => {
 };
 
 // ---------- render results ----------
-let lastResume = '', lastNote = '', lastJob = '';
-function render(r){
+let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '';
+function render(r, fromHistory){
   lastResume = r.tailored_resume || '';
   lastNote = r.cover_note || '';
+  lastName = r.candidate_name || '';
+  lastCompany = r.company || r.job_title || '';
   lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
+  if (!fromHistory) saveHistory(r);
   $('results').style.display = 'block';
   $('resultSub').textContent = lastJob ? lastJob : '';
 
@@ -351,6 +362,11 @@ function render(r){
 
   $('outResume').textContent = lastResume;
 
+  $('outTips').innerHTML = (r.tips||[]).length
+    ? '<p class="hint" style="margin:0 0 4px">💡 For this application:</p>' +
+      r.tips.map(t=>'<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)">'+esc(t)+'</div>').join('') +
+      '<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">'
+    : '';
   $('outChanges').innerHTML = (r.changes||[]).map(c =>
     '<div class="chg"><b>'+esc(c.what)+'</b><span>'+esc(c.why)+'</span></div>').join('') || '<p class="muted">No changes listed.</p>';
   $('outKeywords').innerHTML = (r.keywords_added||[]).length
@@ -388,8 +404,10 @@ async function copy(text, label){
 $('copyResumeBtn').onclick = ()=> copy(lastResume, 'Resume');
 $('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
 function fileName(ext){
-  const base = (lastJob || 'tailored-resume').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,60) || 'resume';
-  return 'Resume-' + base + ext;
+  const clean = s => String(s||'').replace(/[^a-z0-9 ]+/gi,' ').replace(/\s+/g,' ').trim();
+  const who = clean(lastName), where = clean(lastCompany).slice(0,40);
+  const base = (who ? who + ' Resume' : 'Resume') + (where ? ' - ' + where : '');
+  return (base || 'Tailored Resume') + ext;
 }
 $('dlTxtBtn').onclick = ()=> download(new Blob([lastResume],{type:'text/plain'}), fileName('.txt'));
 $('dlWordBtn').onclick = ()=>{
@@ -398,6 +416,31 @@ $('dlWordBtn').onclick = ()=>{
     esc(lastResume) + '</body></html>';
   download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
 };
+// ---------- history: each job keeps its own tailored resume ----------
+function readHistory(){ try{ return JSON.parse(store.read('rt_history')||'[]') }catch{ return [] } }
+function saveHistory(r){
+  const h = readHistory();
+  h.unshift({ when: Date.now(), label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job', result: r });
+  store.write('rt_history', JSON.stringify(h.slice(0, 12)));
+  renderHistory();
+}
+function renderHistory(){
+  const h = readHistory();
+  $('historyCard').style.display = h.length ? 'block' : 'none';
+  $('historyList').innerHTML = h.map((e,i)=>{
+    const d = new Date(e.when);
+    const when = d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    return '<button class="btn" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin-top:8px">'+
+      '<b>'+esc(e.label)+'</b><br><span class="muted">'+when+' · '+ (e.result && e.result.match_after != null ? clamp(e.result.match_after)+'% match' : '') +'</span></button>';
+  }).join('');
+}
+$('historyList').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-i]'); if (!b) return;
+  const entry = readHistory()[Number(b.dataset.i)];
+  if (entry) { render(entry.result, true); }
+});
+renderHistory();
+
 function download(blob, name){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
