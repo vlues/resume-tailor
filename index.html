@@ -109,17 +109,19 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       </div>
       <p class="muted" id="fileStatus"></p>
     </div>
+    <details class="adv" id="profileDetails">
+      <summary>🌍 Your situation (helps every tailoring — saved)</summary>
+      <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
+      <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
+    </details>
   </section>
 
   <!-- STEP 2: job -->
   <section class="card">
     <h2><span class="step">2</span> The job</h2>
-    <p class="hint">Paste the link to the job posting.</p>
-    <input type="url" id="jobUrl" placeholder="https://… job posting link" inputmode="url" autocapitalize="off">
-    <details class="adv" id="jobTextDetails">
-      <summary>Link not working? Paste the job description instead</summary>
-      <textarea id="jobText" style="margin-top:10px" placeholder="Paste the whole job description here…"></textarea>
-    </details>
+    <p class="hint">One tap: copy the job link in the other app, come back, hit the button. (A pasted link starts by itself.)</p>
+    <button class="btn" id="pasteGoBtn" style="width:100%;padding:14px;font-size:1rem;border-color:var(--brand);color:var(--brand)">📋 Paste &amp; Tailor — one tap</button>
+    <textarea id="jobInput" style="margin-top:10px;min-height:90px" placeholder="…or paste the job link or the whole job description here" autocapitalize="off"></textarea>
   </section>
 
   <!-- access code (only shows if the API requires one) -->
@@ -157,8 +159,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <button class="tab on" data-pane="paneResume">📋 Resume</button>
       <button class="tab" data-pane="paneChanges">✨ What changed</button>
       <button class="tab" data-pane="paneAts">🤖 ATS check</button>
-      <button class="tab" data-pane="paneNote">💌 Cover note</button>
+      <button class="tab" data-pane="paneInterview">🎤 Interview</button>
+      <button class="tab" data-pane="paneNote">💌 Messages</button>
     </div>
+
+    <div class="miss" id="locationBanner" style="display:none"></div>
+    <div class="miss" id="scamBanner" style="display:none;border-color:rgba(214,69,80,.5);background:rgba(214,69,80,.08)"></div>
 
     <div class="pane on" id="paneResume">
       <div class="row" style="margin:0 0 10px">
@@ -181,11 +187,32 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <ul class="checks" id="outAts"></ul>
     </div>
 
+    <div class="pane" id="paneInterview">
+      <p class="hint">What they’ll likely ask for this job — and how to answer with <em>your</em> experience.</p>
+      <div id="outQuestions"></div>
+      <p class="muted" style="margin-top:14px">Remote-interview basics: quiet spot, camera at eye level, headset in, and have a 30-second “tell me about yourself” ready that ends with why you want <em>this</em> job.</p>
+    </div>
+
     <div class="pane" id="paneNote">
-      <p class="hint">Paste this in the “anything else you’d like us to know” box, or send it with the application.</p>
+      <p class="hint">💬 <b>Quick note</b> — for the “anything else?” box on applications:</p>
       <div class="copy-note" id="outNote"></div>
       <div class="row"><button class="btn small good" id="copyNoteBtn">📋 Copy note</button></div>
+      <p class="hint" style="margin-top:18px">📄 <b>Full cover letter</b> — when the application asks for one:</p>
+      <div class="copy-note" id="outLetter"></div>
+      <div class="row"><button class="btn small good" id="copyLetterBtn">📋 Copy cover letter</button></div>
+      <p class="hint" style="margin-top:18px">⏰ <b>Follow-up</b> — send this if you haven’t heard back in 5–7 days:</p>
+      <div class="copy-note" id="outFollowUp"></div>
+      <div class="row"><button class="btn small good" id="copyFollowUpBtn">📋 Copy follow-up</button></div>
     </div>
+  </section>
+
+  <!-- jobs feed: found for her, one tap tailors -->
+  <section class="card" id="feedCard">
+    <h2>✨ Fresh jobs, found for you</h2>
+    <p class="hint">Remote customer service you can work from Kosovo or Spain, newest first. <b>Tap one — everything else happens by itself.</b></p>
+    <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
+    <div class="row"><button class="btn small" id="feedRefresh">🔄 Refresh</button>
+      <a class="btn small" href="https://www.linkedin.com/jobs/search/?keywords=remote%20customer%20support&location=European%20Union&f_WT=2&f_TPR=r86400" target="_blank" rel="noopener" style="text-decoration:none">More on LinkedIn</a></div>
   </section>
 
   <!-- history -->
@@ -224,6 +251,13 @@ $('saveResumeBtn').onclick = () => {
 $('editResumeBtn').onclick = () => { $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block'; };
 refreshResumeUI();
 $('accessCode').value = store.read('rt_code');
+// "your situation" — saved, pre-filled for the Kosovo → Spain plan
+const DEFAULT_PROFILE = 'Based in Kosovo (CET timezone — same as Spain and central Europe). Planning to move to Spain on the digital nomad visa, so the job must be fully remote for a non-Spanish company that allows working from Europe / anywhere, ideally paying at least €2,850/month gross (the visa’s income requirement). Fluent English; add your other languages here. Looking for remote customer service / support roles.';
+$('profileText').value = store.read('rt_profile') || DEFAULT_PROFILE;
+$('profileText').addEventListener('input', () => {
+  clearTimeout($('profileText')._t);
+  $('profileText')._t = setTimeout(()=> store.write('rt_profile', $('profileText').value.trim()), 800);
+});
 
 // ---------- file upload (.txt/.docx/.pdf) ----------
 $('resumeFile').addEventListener('change', async e => {
@@ -253,7 +287,8 @@ $('resumeFile').addEventListener('change', async e => {
     text = text.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
     if (text.length < 100) throw new Error('Couldn’t read much text from that file — try pasting instead.');
     $('resumeText').value = text;
-    $('fileStatus').textContent = '✓ Loaded ' + f.name + ' — now tap Save resume.';
+    store.write('rt_resume', text); $('savedPill').style.display = 'inline-flex';
+    $('fileStatus').textContent = '✓ Loaded and saved ' + f.name + '.';
   } catch(err){
     $('fileStatus').textContent = '';
     showErr('Couldn’t read that file (' + err.message + '). Easiest fix: open it, select all, copy, and paste above.');
@@ -293,17 +328,25 @@ function showErr(msg){ $('errBox').textContent = msg; $('errBox').style.display=
 function hideErr(){ $('errBox').style.display='none'; }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
 
-$('tailorBtn').onclick = async () => {
+function looksLikeUrl(s){
+  return /^(https?:\/\/|www\.)\S+$/i.test(s.trim()) && !/\s/.test(s.trim());
+}
+let tailoring = false;
+async function doTailor(){
+  if (tailoring) return;
   hideErr();
   const resume = ($('resumeText').value || store.read('rt_resume')).trim();
-  if (resume.length < 100) return showErr('Add your resume first (step 1) — paste it and tap Save.');
+  if (resume.length < 100) { $('resumeText').focus(); return showErr('Add your resume first (step 1) — paste it once and it stays saved.'); }
   if ($('resumeText').value.trim().length > 100) store.write('rt_resume', $('resumeText').value.trim());
   const code = $('accessCode').value.trim(); if (code) store.write('rt_code', code);
 
-  let jobText = $('jobText').value.trim();
-  const jobUrl = $('jobUrl').value.trim();
-  if (!jobText && !jobUrl) return showErr('Add the job (step 2) — paste the link or the description.');
+  const jobRaw = $('jobInput').value.trim();
+  if (!jobRaw) return showErr('Add the job (step 2) — paste the link or the description.');
+  const isUrl = looksLikeUrl(jobRaw);
+  let jobText = isUrl ? '' : jobRaw;
+  const jobUrl = isUrl ? (jobRaw.startsWith('www.') ? 'https://' + jobRaw : jobRaw) : '';
 
+  tailoring = true;
   startLoading();
   try {
     if (!jobText) {
@@ -313,9 +356,9 @@ $('tailorBtn').onclick = async () => {
       });
       const d = await r.json();
       if (!r.ok || d.error) {
-        stopLoading();
+        stopLoading(); tailoring = false;
         if (d.error === 'bad_code') return showErr(d.message);
-        $('jobTextDetails').open = true;
+        $('jobInput').value = ''; $('jobInput').placeholder = 'Paste the whole job description here…'; $('jobInput').focus();
         return showErr((d.message || 'Couldn’t read that link.') + '');
       }
       jobText = d.jobText;
@@ -323,25 +366,58 @@ $('tailorBtn').onclick = async () => {
 
     const r2 = await fetch(API_BASE + '/api/tailor', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ resume, jobText, accessCode: code })
+      body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim() })
     });
     const d2 = await r2.json();
-    stopLoading();
+    stopLoading(); tailoring = false;
     if (!r2.ok || d2.error) return showErr(d2.message || 'Something went wrong — try again.');
+    $('jobInput').value = '';   // ready for the next job
     render(d2.result);
   } catch(err){
-    stopLoading();
+    stopLoading(); tailoring = false;
     showErr('Network hiccup — check your signal and try again.');
+  }
+}
+$('tailorBtn').onclick = doTailor;
+
+// One-tap: read the clipboard, fill the box, and go.
+$('pasteGoBtn').onclick = async () => {
+  try {
+    const t = (await navigator.clipboard.readText() || '').trim();
+    if (!t) throw new Error('empty');
+    $('jobInput').value = t;
+    doTailor();
+  } catch {
+    $('jobInput').focus();
+    toast('Long-press the box and tap Paste');
   }
 };
 
+// A pasted link starts tailoring by itself.
+$('jobInput').addEventListener('paste', () => {
+  setTimeout(() => { if (looksLikeUrl($('jobInput').value)) doTailor(); }, 150);
+});
+
+// Resume auto-saves while typing — the Save button is just reassurance.
+let saveTimer = null;
+$('resumeText').addEventListener('input', () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const v = $('resumeText').value.trim();
+    if (v.length > 100) { store.write('rt_resume', v); $('savedPill').style.display = 'inline-flex'; }
+  }, 800);
+});
+
 // ---------- render results ----------
-let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '';
+let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '', lastLetter = '', lastFollowUp = '', lastTitle = '';
 function render(r, fromHistory){
   lastResume = r.tailored_resume || '';
   lastNote = r.cover_note || '';
   lastName = r.candidate_name || '';
-  lastCompany = r.company || r.job_title || '';
+  lastCompany = r.company || '';
+  lastTitle = r.job_title || '';
+  lastLetter = r.cover_letter || '';
+  lastFollowUp = r.follow_up || '';
   lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
   if (!fromHistory) saveHistory(r);
   $('results').style.display = 'block';
@@ -381,6 +457,34 @@ function render(r, fromHistory){
     '<li><span class="tick '+(c.pass?'ok':'no')+'">'+(c.pass?'✓':'!')+'</span><span><b>'+esc(c.item)+'</b><br><span class="muted">'+esc(c.note)+'</span></span></li>').join('');
 
   $('outNote').textContent = lastNote;
+  $('outLetter').textContent = lastLetter || '(This one didn’t come with a cover letter — tap Tailor again if you need one.)';
+  $('outFollowUp').textContent = lastFollowUp || '';
+
+  $('outQuestions').innerHTML = (r.screening_questions||[]).map(x =>
+    '<div class="chg"><b>❓ '+esc(x.q)+'</b><span>'+esc(x.tip)+'</span></div>').join('')
+    || '<p class="muted">No predicted questions for this one.</p>';
+
+  const loc = r.location_fit || {};
+  $('locationBanner').style.display = loc.note ? 'block' : 'none';
+  if (loc.note) {
+    const icon = loc.level === 'good' ? '🟢' : loc.level === 'blocked' ? '🔴' : '🟡';
+    const head = loc.level === 'good' ? 'Location: looks open to you'
+      : loc.level === 'blocked' ? 'Location problem — probably skip this one'
+      : 'Location: check before spending time';
+    $('locationBanner').style.borderColor = loc.level === 'good' ? 'rgba(31,169,113,.45)' : loc.level === 'blocked' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
+    $('locationBanner').style.background = loc.level === 'good' ? 'rgba(31,169,113,.08)' : loc.level === 'blocked' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
+    $('locationBanner').innerHTML = '<b>' + icon + ' ' + head + '</b><br>' + esc(loc.note);
+  }
+
+  const scam = r.scam_risk || {};
+  const risky = scam.level === 'high' || scam.level === 'medium';
+  $('scamBanner').style.display = risky ? 'block' : 'none';
+  if (risky) {
+    $('scamBanner').innerHTML = '<b>🚩 ' + (scam.level === 'high' ? 'This posting looks like it could be a scam.' : 'A couple of things about this posting look off.') + '</b><br>' +
+      (scam.reasons||[]).map(esc).join('<br>') +
+      '<br><span class="muted">Never pay for equipment or training, never deposit a check for an employer, and be wary of interviews held only in chat apps.</span>';
+  }
+
   $('results').scrollIntoView({behavior:'smooth'});
 }
 function clamp(n){ n = Math.round(Number(n)||0); return Math.max(0, Math.min(100, n)); }
@@ -403,11 +507,13 @@ async function copy(text, label){
 }
 $('copyResumeBtn').onclick = ()=> copy(lastResume, 'Resume');
 $('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
+$('copyLetterBtn').onclick = ()=> copy(lastLetter, 'Cover letter');
+$('copyFollowUpBtn').onclick = ()=> copy(lastFollowUp, 'Follow-up');
 function fileName(ext){
-  const clean = s => String(s||'').replace(/[^a-z0-9 ]+/gi,' ').replace(/\s+/g,' ').trim();
-  const who = clean(lastName), where = clean(lastCompany).slice(0,40);
-  const base = (who ? who + ' Resume' : 'Resume') + (where ? ' - ' + where : '');
-  return (base || 'Tailored Resume') + ext;
+  // Recruiter-standard: Firstname-Lastname-Role.ext (+ company so her files stay sorted)
+  const clean = s => String(s||'').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'');
+  const parts = [clean(lastName), clean(lastTitle).slice(0,40) || 'Resume', clean(lastCompany).slice(0,30)].filter(Boolean);
+  return (parts.join('-') || 'Tailored-Resume') + ext;
 }
 $('dlTxtBtn').onclick = ()=> download(new Blob([lastResume],{type:'text/plain'}), fileName('.txt'));
 $('dlWordBtn').onclick = ()=>{
@@ -416,6 +522,35 @@ $('dlWordBtn').onclick = ()=>{
     esc(lastResume) + '</body></html>';
   download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
 };
+// ---------- jobs feed: found for her, one tap tailors ----------
+function timeAgo(d){
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
+}
+async function loadFeed(){
+  $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
+  try {
+    const r = await fetch(API_BASE + '/api/jobs');
+    const d = await r.json();
+    if (!d.jobs || !d.jobs.length) throw new Error('empty');
+    $('feedList').innerHTML = d.jobs.map((j,i) =>
+      '<button class="btn" data-url="'+esc(j.url)+'" style="display:block;width:100%;text-align:left;margin-top:8px">'+
+        '<b>'+esc(j.title)+'</b> · '+esc(j.company)+'<br>'+
+        '<span class="muted">🌍 '+esc(j.location)+ (j.salary ? ' · 💰 '+esc(j.salary) : '') +' · '+esc(timeAgo(j.date))+'</span>'+
+      '</button>').join('');
+  } catch {
+    $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — pull down to refresh, or paste any job link above.</p>';
+  }
+}
+$('feedList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-url]'); if (!b) return;
+  $('jobInput').value = b.dataset.url;
+  doTailor();
+  window.scrollTo({top: $('tailorBtn').offsetTop - 100, behavior: 'smooth'});
+});
+$('feedRefresh').onclick = loadFeed;
+loadFeed();
+
 // ---------- history: each job keeps its own tailored resume ----------
 function readHistory(){ try{ return JSON.parse(store.read('rt_history')||'[]') }catch{ return [] } }
 function saveHistory(r){

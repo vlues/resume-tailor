@@ -14,8 +14,9 @@ The resume is saved in the phone's browser (localStorage) so it's a one-time pas
 
 - **Frontend** — `index.html`, static, hosted on GitHub Pages: https://vlues.github.io/resume-tailor/
 - **Backend** — Cloudflare Worker (`worker/`) at `resume-tailor-api.streamedmusics.workers.dev`:
-  - `POST /api/fetch-job` — fetches the job URL, prefers schema.org `JobPosting` JSON-LD (LinkedIn/Indeed/Greenhouse/Lever…), falls back to stripped page text, and tells the user to paste the description when a site blocks robots.
-  - `POST /api/tailor` — sends job + resume to Claude with strict honesty + ATS rules, returns structured JSON.
+  - `GET /api/jobs` — "found for you" feed: Remotive + RemoteOK + WeWorkRemotely, filtered to customer-service titles and Europe/anywhere-friendly locations, newest first (15-min upstream cache). Tapping a job on the site auto-tailors.
+  - `POST /api/fetch-job` — reads a job URL: dedicated adapters (Greenhouse boards-api, Lever postings API, SmartRecruiters API, LinkedIn jobs-guest), then schema.org `JobPosting` JSON-LD, then main-content text; guides the user to paste the description when a site blocks robots (LinkedIn/Indeed block datacenter IPs).
+  - `POST /api/tailor` — job + resume + saved "situation" (defaults to Kosovo → Spain digital-nomad-visa plan) → Claude with strict honesty + ATS/AI-screener rules. Returns tailored resume, before/after match scores, changes, keywords, ATS checklist, location-fit verdict, scam-risk flag, screening questions with answer tips, cover note, full cover letter, follow-up message, and per-job tips.
 - The Anthropic key lives **only** in the Worker as a secret. Optional `ACCESS_CODE` gates the API (the site shows a code box only when one is set).
 
 ## Setup (one time)

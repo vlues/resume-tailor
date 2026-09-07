@@ -22,6 +22,10 @@ export default {
         return json({ ok: true, hasKey: !!env.ANTHROPIC_API_KEY, needsCode: !!env.ACCESS_CODE }, 200, cors);
       }
 
+      if (url.pathname === '/api/jobs') {
+        return await jobsFeed(cors);
+      }
+
       if (request.method !== 'POST') {
         return json({ error: 'Not found' }, 404, cors);
       }
@@ -61,6 +65,98 @@ function corsHeaders(request, env) {
 
 function json(obj, status, cors) {
   return new Response(JSON.stringify(obj), { status, headers: { ...JSON_HEADERS, ...cors } });
+}
+
+// ------------------------------------------------------------------ jobs feed
+
+const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote[- ]?first|kosovo|utc|cet/i;
+const TITLE_OK = /customer|support|success|service|helpdesk|help desk|client|community|care|happiness/i;
+
+async function jobsFeed(cors) {
+  const jobs = [];
+  // Remotive: public API with candidate_required_location (category param is
+  // unreliable — filter on the response's category + title instead)
+  try {
+    const r = await fetch('https://remotive.com/api/remote-jobs?search=customer%20support&limit=100', {
+      cf: { cacheTtl: 900, cacheEverything: true },
+    });
+    if (r.ok) {
+      const d = await r.json();
+      for (const j of d.jobs || []) {
+        if (j.category !== 'Customer Service' && !TITLE_OK.test(j.title || '')) continue;
+        if (!TITLE_OK.test((j.title || '') + ' ' + (j.category || ''))) continue;
+        const loc = j.candidate_required_location || '';
+        if (loc && !LOCATION_OK.test(loc)) continue;
+        jobs.push({
+          title: j.title, company: j.company_name, url: j.url,
+          location: loc || 'Not specified', date: j.publication_date,
+          salary: j.salary || '', source: 'Remotive',
+        });
+      }
+    }
+  } catch { /* one source down is fine */ }
+  // RemoteOK: public API; first element is a legal notice
+  try {
+    const r = await fetch('https://remoteok.com/api?tags=customer%20support', {
+      headers: { 'User-Agent': 'ResumeTailor/1.0' },
+      cf: { cacheTtl: 900, cacheEverything: true },
+    });
+    if (r.ok) {
+      const d = await r.json();
+      for (const j of (Array.isArray(d) ? d : [])) {
+        if (!j || !j.position || !j.url) continue;
+        if (!TITLE_OK.test(j.position)) continue;
+        const loc = j.location || '';
+        if (loc && !LOCATION_OK.test(loc)) continue;
+        const salary = j.salary_min ? `$${Math.round(j.salary_min/1000)}k–$${Math.round((j.salary_max||j.salary_min)/1000)}k` : '';
+        jobs.push({
+          title: j.position, company: j.company, url: j.url,
+          location: loc || 'Not specified', date: j.date, salary, source: 'RemoteOK',
+        });
+      }
+    }
+  } catch { /* one source down is fine */ }
+
+  // We Work Remotely: customer-support RSS (already category-pure)
+  try {
+    const r = await fetch('https://weworkremotely.com/categories/remote-customer-support-jobs.rss', {
+      headers: { 'User-Agent': 'ResumeTailor/1.0' },
+      cf: { cacheTtl: 900, cacheEverything: true },
+    });
+    if (r.ok) {
+      const xml = await r.text();
+      const items = xml.split('<item>').slice(1);
+      for (const it of items) {
+        const pick = tag => {
+          const m = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(it);
+          return m ? stripTags(m[1].replace(/<!\[CDATA\[|\]\]>/g, '')).trim() : '';
+        };
+        const rawTitle = pick('title');            // "Company: Job Title"
+        const link = pick('link');
+        const region = pick('region') || 'See posting';
+        const date = pick('pubDate');
+        if (!rawTitle || !link) continue;
+        const [company, ...rest] = rawTitle.split(': ');
+        const title = rest.join(': ') || rawTitle;
+        if (!TITLE_OK.test(title)) continue;
+        if (region && /USA only|US only|Canada only/i.test(region)) continue;
+        jobs.push({ title, company: company || '', url: link, location: region, date, salary: '', source: 'WeWorkRemotely' });
+      }
+    }
+  } catch { /* one source down is fine */ }
+
+  // Newest first, dedupe by company+title, cap.
+  jobs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const seen = new Set();
+  const out = [];
+  for (const j of jobs) {
+    const k = (j.company + '|' + j.title).toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(j);
+    if (out.length >= 20) break;
+  }
+  return json({ ok: true, jobs: out }, 200, cors);
 }
 
 // ---------------------------------------------------------------- fetch-job
@@ -241,6 +337,7 @@ ABSOLUTE RULES — HONESTY:
 - If an important job requirement has no honest match in the resume, list it in missing_keywords instead of faking it.
 
 OPTIMIZE FOR AI AND HUMAN SCREENERS (both skim):
+- Directly under the candidate's name/contact line, add a headline with the posting's EXACT job title (resumes containing the exact title get ~10x more interviews). This is a target-role headline, not a claimed past title — e.g. "Customer Support Specialist — Remote".
 - Front-load: the summary's first line and the first bullet of the most recent job must hit the posting's top requirement.
 - Mirror the posting's exact phrasing for its top 5-8 requirements wherever truthful (e.g. if it says "customer success," don't only say "customer service").
 - Include both acronym and spelled-out forms of any term the posting uses (CRM / customer relationship management).
@@ -265,12 +362,18 @@ Respond ONLY with valid JSON (no markdown fences) in exactly this shape:
   "missing_keywords": [{"term": "requirement with no honest match", "suggestion": "what she could truthfully do or say about it"}],
   "ats_check": [{"item": "check name", "pass": true, "note": "one line"}],
   "cover_note": "a short 3-4 sentence message she can paste into an application's 'anything else' box or a quick email, warm and specific to this job",
-  "tips": ["3-4 short, concrete tips for THIS specific application — e.g. what the screening will likely ask, which of her strengths to lead with if there's a phone screen, anything time-sensitive in the posting"],
+  "cover_letter": "a full cover letter (3 short paragraphs, ~180-250 words) for this job: hook tied to the company, 2-3 proof points from her REAL experience mirroring the posting's language, warm close. No placeholders like [Company] — use the actual names; if the hiring manager is unknown, open with 'Dear Hiring Team,'",
+  "follow_up": "a polite 3-sentence follow-up message to send ~5-7 days after applying if she hasn't heard back, referencing the specific role",
+  "screening_questions": [{"q": "(give 4-6) a question this employer will likely ask in the application form, phone screen, or first interview (base on the posting)", "tip": "how SHE should answer, using her real experience — include a concrete example from her resume where possible"}],
+  "scam_risk": {"level": "low | medium | high", "reasons": ["only if medium/high: specific red flags seen in the posting — e.g. pay far above market, vague company, requests to buy equipment, interviews only via chat app, checks to deposit; empty array when low"]},
+  "location_fit": {"level": "good | caution | blocked", "note": "1-2 plain sentences: given the CANDIDATE SITUATION (if provided), can she realistically get and keep this job? Check the posting for hiring-country/state restrictions ('US only', 'must reside in…', listed countries, timezone windows) and whether it fits her location plans. 'blocked' = the posting clearly excludes her location; 'caution' = unclear or partial fit — say what to check before spending time; 'good' = no location obstacle"},
+  "tips": ["3-4 short, concrete tips for THIS specific application — e.g. what the screening will likely ask, which of her strengths to lead with if there's a phone screen, anything time-sensitive in the posting; if the CANDIDATE SITUATION states an income goal and the posting's visible pay falls short of it, say so plainly"],
   "candidate_name": "the candidate's name exactly as it appears on the resume",
   "job_title": "the job's title",
   "company": "the company name or empty string"
 }
 
+If a CANDIDATE SITUATION section is provided: use it ONLY for emphasis choices, location_fit, tips, and screening answers. NEVER write visa status, nationality, or relocation plans into the resume itself; DO truthfully surface things that help her case (e.g. CET-timezone availability, language skills, work-from-anywhere readiness) if supported by the resume or situation.
 ats_check must cover at least: standard section headers, no tables/columns/graphics, standard fonts implied by plain text, keywords mirrored from posting, contact info present and parseable, dates in consistent format, file-format advice (one line recommending .docx or PDF-with-text upload).
 Scores: match_before = how well the ORIGINAL resume matches the posting's requirements; match_after = the tailored version. Be honest — after tailoring, 75-92 is typical; only exceed that when the fit is genuinely excellent. Never claim 100.`;
 
@@ -287,7 +390,8 @@ async function tailor(body, env, cors) {
     return json({ error: 'thin_job', message: 'The job description looks too short — paste more of it.' }, 400, cors);
   }
 
-  const userMsg = `JOB POSTING:\n${jobText.slice(0, 20000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 15000)}\n\nTailor the resume to this job posting. Remember: honesty rules, ATS-safe plain text, JSON only.`;
+  const profile = String(body.profile || '').trim().slice(0, 2000);
+  const userMsg = `JOB POSTING:\n${jobText.slice(0, 20000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 15000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, ATS-safe plain text, JSON only.`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -298,7 +402,7 @@ async function tailor(body, env, cors) {
     },
     body: JSON.stringify({
       model: env.CLAUDE_MODEL || 'claude-sonnet-4-5',
-      max_tokens: 8000,
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMsg }],
     }),
