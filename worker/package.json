@@ -1,0 +1,13 @@
+{
+  "name": "resume-tailor-api",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cloudflare Worker backend for Resume Tailor",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

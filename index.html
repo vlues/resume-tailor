@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7c5cff">
+<title>Resume Tailor ✂️</title>
+<meta name="description" content="Paste a job link, get a resume tailored to it — ATS-safe, honest, with a match score.">
+<style>
+:root{
+  --bg:#f6f5fb; --card:#ffffff; --ink:#211f33; --muted:#6f6c85;
+  --brand:#7c5cff; --brand-dark:#5b3df0; --good:#1fa971; --warn:#e08a00; --bad:#d64550;
+  --line:#e7e5f2; --radius:18px; --shadow:0 4px 20px rgba(80,60,180,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#15131f; --card:#1f1c2e; --ink:#f0eefb; --muted:#a29ec2; --line:#312d47; --shadow:0 4px 20px rgba(0,0,0,.35); }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:60px}
+.wrap{max-width:640px;margin:0 auto;padding:16px}
+header{text-align:center;padding:22px 16px 6px}
+header h1{margin:0;font-size:1.7rem}
+header p{margin:6px 0 0;color:var(--muted);font-size:.95rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-top:16px}
+.card h2{margin:0 0 4px;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.card .hint{color:var(--muted);font-size:.88rem;margin:0 0 12px}
+.step{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-size:.85rem;font-weight:700;flex:none}
+textarea,input[type=text],input[type=url],input[type=password]{
+  width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font:16px/1.45 inherit;
+  background:var(--bg);color:var(--ink);outline:none;
+}
+textarea:focus,input:focus{border-color:var(--brand)}
+textarea{min-height:150px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;-webkit-tap-highlight-color:transparent}
+.btn{background:var(--bg);color:var(--ink);border:1.5px solid var(--line);padding:11px 16px;font-weight:600;font-size:.95rem}
+.btn:active{transform:scale(.97)}
+.btn.small{padding:8px 12px;font-size:.87rem}
+.btn.good{border-color:var(--good);color:var(--good)}
+.primary{
+  display:block;width:100%;margin-top:18px;padding:17px;border-radius:16px;font-size:1.15rem;font-weight:800;color:#fff;
+  background:linear-gradient(135deg,var(--brand),var(--brand-dark));box-shadow:0 6px 18px rgba(124,92,255,.4);
+}
+.primary:disabled{opacity:.55;box-shadow:none}
+.saved-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(31,169,113,.12);color:var(--good);font-weight:700;font-size:.85rem;border-radius:999px;padding:5px 12px}
+.muted{color:var(--muted);font-size:.85rem}
+.error{background:rgba(214,69,80,.1);border:1.5px solid rgba(214,69,80,.4);color:var(--bad);border-radius:12px;padding:12px 14px;margin-top:14px;font-size:.93rem;display:none}
+.spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-4px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#loadingMsg{text-align:center;color:var(--muted);margin-top:12px;min-height:1.4em;font-size:.92rem}
+/* results */
+.score-wrap{display:flex;align-items:center;gap:18px}
+.ring{position:relative;width:110px;height:110px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:1.6rem}
+.ring .num small{font-weight:600;font-size:.65rem;color:var(--muted)}
+.delta{font-size:.95rem}
+.delta b{color:var(--good)}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:16px -18px 0;padding:0 18px 4px;-webkit-overflow-scrolling:touch}
+.tab{flex:none;padding:9px 14px;border-radius:999px;background:var(--bg);border:1.5px solid var(--line);font-weight:600;font-size:.88rem;color:var(--muted)}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.pane{display:none;margin-top:14px}
+.pane.on{display:block}
+pre.resume{white-space:pre-wrap;word-wrap:break-word;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:14px;font:13.5px/1.5 ui-monospace,Menlo,monospace;max-height:420px;overflow:auto}
+.chg{border-left:3px solid var(--brand);padding:6px 0 6px 12px;margin:10px 0}
+.chg b{display:block;font-size:.93rem}
+.chg span{color:var(--muted);font-size:.87rem}
+ul.checks{list-style:none;padding:0;margin:0}
+ul.checks li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.92rem;align-items:flex-start}
+ul.checks li:last-child{border-bottom:0}
+.tick{flex:none;font-weight:800}
+.tick.ok{color:var(--good)} .tick.no{color:var(--warn)}
+.kw{display:inline-block;background:rgba(124,92,255,.12);color:var(--brand);border-radius:999px;padding:4px 11px;margin:3px 3px 0 0;font-size:.83rem;font-weight:600}
+.miss{background:rgba(224,138,0,.08);border:1.5px solid rgba(224,138,0,.3);border-radius:12px;padding:11px 13px;margin:9px 0;font-size:.9rem}
+.miss b{color:var(--warn)}
+.copy-note{background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:14px;font-size:.95rem;white-space:pre-wrap}
+details.adv{margin-top:12px}
+details.adv summary{color:var(--muted);font-size:.88rem;cursor:pointer}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:11px 20px;border-radius:999px;font-weight:600;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .25s;z-index:50}
+.toast.show{opacity:1}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padding:0 16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Resume Tailor ✂️</h1>
+  <p>Paste a job link. Get your resume rewritten for <em>that</em> job — honest, ATS-friendly, ready to send.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- STEP 1: resume -->
+  <section class="card" id="resumeCard">
+    <h2><span class="step">1</span> Your resume <span id="savedPill" class="saved-pill" style="display:none">✓ saved on this phone</span></h2>
+    <p class="hint">Do this once — it stays saved here. Paste the text, or upload the file.</p>
+    <div id="resumeCollapsed" style="display:none">
+      <div class="row">
+        <button class="btn small" id="editResumeBtn">✏️ View / update resume</button>
+      </div>
+    </div>
+    <div id="resumeOpen">
+      <textarea id="resumeText" placeholder="Paste your whole resume here…"></textarea>
+      <div class="row">
+        <label class="btn small" style="display:inline-flex;align-items:center;gap:6px">
+          📄 Upload file (.docx / .pdf / .txt)
+          <input type="file" id="resumeFile" accept=".docx,.pdf,.txt,.rtf" style="display:none">
+        </label>
+        <button class="btn small good" id="saveResumeBtn">💾 Save resume</button>
+      </div>
+      <p class="muted" id="fileStatus"></p>
+    </div>
+  </section>
+
+  <!-- STEP 2: job -->
+  <section class="card">
+    <h2><span class="step">2</span> The job</h2>
+    <p class="hint">Paste the link to the job posting.</p>
+    <input type="url" id="jobUrl" placeholder="https://… job posting link" inputmode="url" autocapitalize="off">
+    <details class="adv" id="jobTextDetails">
+      <summary>Link not working? Paste the job description instead</summary>
+      <textarea id="jobText" style="margin-top:10px" placeholder="Paste the whole job description here…"></textarea>
+    </details>
+  </section>
+
+  <!-- access code (only shows if the API requires one) -->
+  <section class="card" id="codeCard" style="display:none">
+    <h2>🔑 Access code</h2>
+    <p class="hint">One-time — Parker will give you this.</p>
+    <input type="password" id="accessCode" placeholder="Access code" autocomplete="off">
+  </section>
+
+  <button class="primary" id="tailorBtn">✂️ Tailor my resume</button>
+  <div id="loadingMsg"></div>
+  <div class="error" id="errBox"></div>
+
+  <!-- RESULTS -->
+  <section class="card" id="results" style="display:none">
+    <h2 id="resultTitle">🎯 Tailored for this job</h2>
+    <p class="hint" id="resultSub"></p>
+    <div class="score-wrap">
+      <div class="ring">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="48" fill="none" stroke="var(--line)" stroke-width="10"/>
+          <circle id="ringArc" cx="55" cy="55" r="48" fill="none" stroke="var(--good)" stroke-width="10"
+                  stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
+        </svg>
+        <div class="num"><span id="scoreNum">–</span><small>match</small></div>
+      </div>
+      <div class="delta">
+        <div>Before tailoring: <b id="scoreBefore" style="color:var(--muted)">–</b></div>
+        <div>After tailoring: <b id="scoreAfter">–</b></div>
+        <p class="muted" id="scoreWhy" style="margin:8px 0 0"></p>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-pane="paneResume">📋 Resume</button>
+      <button class="tab" data-pane="paneChanges">✨ What changed</button>
+      <button class="tab" data-pane="paneAts">🤖 ATS check</button>
+      <button class="tab" data-pane="paneNote">💌 Cover note</button>
+    </div>
+
+    <div class="pane on" id="paneResume">
+      <div class="row" style="margin:0 0 10px">
+        <button class="btn small good" id="copyResumeBtn">📋 Copy resume</button>
+        <button class="btn small" id="dlWordBtn">⬇️ Word file</button>
+        <button class="btn small" id="dlTxtBtn">⬇️ .txt</button>
+      </div>
+      <pre class="resume" id="outResume"></pre>
+      <p class="muted">Tip: paste into Google Docs / Word, quick look for anything to tweak, then upload as .docx or PDF.</p>
+    </div>
+
+    <div class="pane" id="paneChanges">
+      <div id="outChanges"></div>
+      <div id="outKeywords" style="margin-top:14px"></div>
+      <div id="outMissing" style="margin-top:14px"></div>
+    </div>
+
+    <div class="pane" id="paneAts">
+      <ul class="checks" id="outAts"></ul>
+    </div>
+
+    <div class="pane" id="paneNote">
+      <p class="hint">Paste this in the “anything else you’d like us to know” box, or send it with the application.</p>
+      <div class="copy-note" id="outNote"></div>
+      <div class="row"><button class="btn small good" id="copyNoteBtn">📋 Copy note</button></div>
+    </div>
+  </section>
+
+  <footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = 'https://resume-tailor-api.streamedmusics.workers.dev';
+const $ = id => document.getElementById(id);
+const store = {
+  get k(){ try{ return localStorage }catch{ return null } },
+  read(key){ try{ return localStorage.getItem(key)||'' }catch{ return '' } },
+  write(key,v){ try{ localStorage.setItem(key,v) }catch{} },
+};
+
+// ---------- resume save/restore ----------
+function refreshResumeUI(){
+  const has = store.read('rt_resume').length > 100;
+  $('savedPill').style.display = has ? 'inline-flex' : 'none';
+  $('resumeCollapsed').style.display = has ? 'block' : 'none';
+  $('resumeOpen').style.display = has ? 'none' : 'block';
+  if (has) $('resumeText').value = store.read('rt_resume');
+}
+$('saveResumeBtn').onclick = () => {
+  const v = $('resumeText').value.trim();
+  if (v.length < 100) return showErr('That resume looks too short — paste the whole thing.');
+  store.write('rt_resume', v); hideErr(); toast('Resume saved ✓'); refreshResumeUI();
+};
+$('editResumeBtn').onclick = () => { $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block'; };
+refreshResumeUI();
+$('accessCode').value = store.read('rt_code');
+
+// ---------- file upload (.txt/.docx/.pdf) ----------
+$('resumeFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('fileStatus').textContent = 'Reading ' + f.name + '…';
+  try {
+    let text = '';
+    if (/\.txt$|\.rtf$/i.test(f.name)) {
+      text = await f.text();
+      if (/\.rtf$/i.test(f.name)) text = text.replace(/\\[a-z]+-?\d* ?|[{}]/g,'').trim();
+    } else if (/\.docx$/i.test(f.name)) {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js');
+      const buf = await f.arrayBuffer();
+      text = (await window.mammoth.extractRawText({arrayBuffer: buf})).value;
+    } else if (/\.pdf$/i.test(f.name)) {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+      const parts = [];
+      for (let i=1;i<=pdf.numPages;i++){
+        const page = await pdf.getPage(i);
+        const tc = await page.getTextContent();
+        parts.push(tc.items.map(it=>it.str).join(' '));
+      }
+      text = parts.join('\n\n');
+    } else { throw new Error('Use a .docx, .pdf or .txt file.'); }
+    text = text.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+    if (text.length < 100) throw new Error('Couldn’t read much text from that file — try pasting instead.');
+    $('resumeText').value = text;
+    $('fileStatus').textContent = '✓ Loaded ' + f.name + ' — now tap Save resume.';
+  } catch(err){
+    $('fileStatus').textContent = '';
+    showErr('Couldn’t read that file (' + err.message + '). Easiest fix: open it, select all, copy, and paste above.');
+  }
+  e.target.value = '';
+});
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    if (document.querySelector('script[src="'+src+'"]')) return res();
+    const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('network'));
+    document.head.appendChild(s);
+  });
+}
+
+// ---------- health check: show code box only if needed ----------
+fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
+  if (h.needsCode) $('codeCard').style.display='block';
+}).catch(()=>{});
+
+// ---------- tailor flow ----------
+const LOADING_LINES = [
+  'Reading the job posting…','Matching it to your experience…','Rewriting your bullets…',
+  'Adding the keywords recruiters search for…','Running the ATS checks…','Almost there — polishing…'
+];
+let loadTimer = null;
+function startLoading(){
+  let i=0; $('loadingMsg').textContent = LOADING_LINES[0];
+  loadTimer = setInterval(()=>{ i=Math.min(i+1,LOADING_LINES.length-1); $('loadingMsg').textContent=LOADING_LINES[i]; }, 5000);
+  $('tailorBtn').disabled = true;
+  $('tailorBtn').innerHTML = '<span class="spin"></span>Tailoring…';
+}
+function stopLoading(){
+  clearInterval(loadTimer); $('loadingMsg').textContent='';
+  $('tailorBtn').disabled = false; $('tailorBtn').textContent = '✂️ Tailor my resume';
+}
+function showErr(msg){ $('errBox').textContent = msg; $('errBox').style.display='block'; $('errBox').scrollIntoView({behavior:'smooth',block:'center'}); }
+function hideErr(){ $('errBox').style.display='none'; }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+$('tailorBtn').onclick = async () => {
+  hideErr();
+  const resume = ($('resumeText').value || store.read('rt_resume')).trim();
+  if (resume.length < 100) return showErr('Add your resume first (step 1) — paste it and tap Save.');
+  if ($('resumeText').value.trim().length > 100) store.write('rt_resume', $('resumeText').value.trim());
+  const code = $('accessCode').value.trim(); if (code) store.write('rt_code', code);
+
+  let jobText = $('jobText').value.trim();
+  const jobUrl = $('jobUrl').value.trim();
+  if (!jobText && !jobUrl) return showErr('Add the job (step 2) — paste the link or the description.');
+
+  startLoading();
+  try {
+    if (!jobText) {
+      const r = await fetch(API_BASE + '/api/fetch-job', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ url: jobUrl, accessCode: code })
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) {
+        stopLoading();
+        if (d.error === 'bad_code') return showErr(d.message);
+        $('jobTextDetails').open = true;
+        return showErr((d.message || 'Couldn’t read that link.') + '');
+      }
+      jobText = d.jobText;
+    }
+
+    const r2 = await fetch(API_BASE + '/api/tailor', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ resume, jobText, accessCode: code })
+    });
+    const d2 = await r2.json();
+    stopLoading();
+    if (!r2.ok || d2.error) return showErr(d2.message || 'Something went wrong — try again.');
+    render(d2.result);
+  } catch(err){
+    stopLoading();
+    showErr('Network hiccup — check your signal and try again.');
+  }
+};
+
+// ---------- render results ----------
+let lastResume = '', lastNote = '', lastJob = '';
+function render(r){
+  lastResume = r.tailored_resume || '';
+  lastNote = r.cover_note || '';
+  lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
+  $('results').style.display = 'block';
+  $('resultSub').textContent = lastJob ? lastJob : '';
+
+  const before = clamp(r.match_before), after = clamp(r.match_after);
+  $('scoreBefore').textContent = before + '%';
+  $('scoreAfter').textContent = after + '%';
+  $('scoreNum').textContent = after + '%';
+  $('scoreWhy').textContent = r.match_explanation || '';
+  const C = 301.6;
+  requestAnimationFrame(()=> {
+    const arc = $('ringArc');
+    arc.style.transition = 'stroke-dashoffset 1.2s ease';
+    arc.style.strokeDashoffset = String(C * (1 - after/100));
+    arc.style.stroke = after >= 75 ? 'var(--good)' : after >= 55 ? 'var(--warn)' : 'var(--bad)';
+  });
+
+  $('outResume').textContent = lastResume;
+
+  $('outChanges').innerHTML = (r.changes||[]).map(c =>
+    '<div class="chg"><b>'+esc(c.what)+'</b><span>'+esc(c.why)+'</span></div>').join('') || '<p class="muted">No changes listed.</p>';
+  $('outKeywords').innerHTML = (r.keywords_added||[]).length
+    ? '<p class="hint" style="margin:0 0 4px">Keywords now in your resume:</p>' + r.keywords_added.map(k=>'<span class="kw">'+esc(k)+'</span>').join('')
+    : '';
+  $('outMissing').innerHTML = (r.missing_keywords||[]).length
+    ? '<p class="hint" style="margin:0 0 4px">They also want these — nothing was made up, but worth a look:</p>' +
+      r.missing_keywords.map(m=>'<div class="miss"><b>'+esc(m.term)+'</b> — '+esc(m.suggestion)+'</div>').join('')
+    : '';
+
+  $('outAts').innerHTML = (r.ats_check||[]).map(c =>
+    '<li><span class="tick '+(c.pass?'ok':'no')+'">'+(c.pass?'✓':'!')+'</span><span><b>'+esc(c.item)+'</b><br><span class="muted">'+esc(c.note)+'</span></span></li>').join('');
+
+  $('outNote').textContent = lastNote;
+  $('results').scrollIntoView({behavior:'smooth'});
+}
+function clamp(n){ n = Math.round(Number(n)||0); return Math.max(0, Math.min(100, n)); }
+function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// tabs
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t===b));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===b.dataset.pane));
+});
+
+// copy + downloads
+async function copy(text, label){
+  try { await navigator.clipboard.writeText(text); toast(label+' copied ✓'); }
+  catch {
+    const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove(); toast(label+' copied ✓');
+  }
+}
+$('copyResumeBtn').onclick = ()=> copy(lastResume, 'Resume');
+$('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
+function fileName(ext){
+  const base = (lastJob || 'tailored-resume').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,60) || 'resume';
+  return 'Resume-' + base + ext;
+}
+$('dlTxtBtn').onclick = ()=> download(new Blob([lastResume],{type:'text/plain'}), fileName('.txt'));
+$('dlWordBtn').onclick = ()=>{
+  const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
+    '<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
+    esc(lastResume) + '</body></html>';
+  download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
+};
+function download(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+</script>
+</body>
+</html>

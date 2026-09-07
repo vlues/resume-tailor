@@ -1,0 +1,11 @@
+name = "resume-tailor-api"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://vlues.github.io,http://localhost:8899,http://127.0.0.1:8899"
+CLAUDE_MODEL = "claude-sonnet-4-5"
+
+# Secrets are NOT set here — use ./setup-api.sh (or `wrangler secret put`):
+#   ANTHROPIC_API_KEY   — required
+#   ACCESS_CODE         — optional; if set, the site asks for it once
