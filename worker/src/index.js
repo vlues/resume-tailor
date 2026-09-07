@@ -69,83 +69,28 @@ function json(obj, status, cors) {
 
 // ------------------------------------------------------------------ jobs feed
 
-const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote[- ]?first|kosovo|utc|cet/i;
+const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote[- ]?first|kosovo|spain|utc|cet|balkan/i;
 const TITLE_OK = /customer|support|success|service|helpdesk|help desk|client|community|care|happiness/i;
+const US_ONLY = /U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only/i;
+const FEED_CACHE_KEY = 'https://resume-tailor.internal/jobs-feed-v3';
+const UA = { 'User-Agent': 'ResumeTailor/1.0' };
+const CF_CACHE = { cf: { cacheTtl: 900, cacheEverything: true } };
 
 async function jobsFeed(cors) {
-  const jobs = [];
-  // Remotive: public API with candidate_required_location (category param is
-  // unreliable — filter on the response's category + title instead)
-  try {
-    const r = await fetch('https://remotive.com/api/remote-jobs?search=customer%20support&limit=100', {
-      cf: { cacheTtl: 900, cacheEverything: true },
-    });
-    if (r.ok) {
-      const d = await r.json();
-      for (const j of d.jobs || []) {
-        if (j.category !== 'Customer Service' && !TITLE_OK.test(j.title || '')) continue;
-        if (!TITLE_OK.test((j.title || '') + ' ' + (j.category || ''))) continue;
-        const loc = j.candidate_required_location || '';
-        if (loc && !LOCATION_OK.test(loc)) continue;
-        jobs.push({
-          title: j.title, company: j.company_name, url: j.url,
-          location: loc || 'Not specified', date: j.publication_date,
-          salary: j.salary || '', source: 'Remotive',
-        });
-      }
-    }
-  } catch { /* one source down is fine */ }
-  // RemoteOK: public API; first element is a legal notice
-  try {
-    const r = await fetch('https://remoteok.com/api?tags=customer%20support', {
-      headers: { 'User-Agent': 'ResumeTailor/1.0' },
-      cf: { cacheTtl: 900, cacheEverything: true },
-    });
-    if (r.ok) {
-      const d = await r.json();
-      for (const j of (Array.isArray(d) ? d : [])) {
-        if (!j || !j.position || !j.url) continue;
-        if (!TITLE_OK.test(j.position)) continue;
-        const loc = j.location || '';
-        if (loc && !LOCATION_OK.test(loc)) continue;
-        const salary = j.salary_min ? `$${Math.round(j.salary_min/1000)}k–$${Math.round((j.salary_max||j.salary_min)/1000)}k` : '';
-        jobs.push({
-          title: j.position, company: j.company, url: j.url,
-          location: loc || 'Not specified', date: j.date, salary, source: 'RemoteOK',
-        });
-      }
-    }
-  } catch { /* one source down is fine */ }
+  // Whole-feed cache: repeat loads within 10 minutes are instant.
+  const cache = caches.default;
+  const hit = await cache.match(FEED_CACHE_KEY).catch(() => null);
+  if (hit) {
+    const body = await hit.text();
+    return new Response(body, { status: 200, headers: { ...JSON_HEADERS, ...cors } });
+  }
 
-  // We Work Remotely: customer-support RSS (already category-pure)
-  try {
-    const r = await fetch('https://weworkremotely.com/categories/remote-customer-support-jobs.rss', {
-      headers: { 'User-Agent': 'ResumeTailor/1.0' },
-      cf: { cacheTtl: 900, cacheEverything: true },
-    });
-    if (r.ok) {
-      const xml = await r.text();
-      const items = xml.split('<item>').slice(1);
-      for (const it of items) {
-        const pick = tag => {
-          const m = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(it);
-          return m ? stripTags(m[1].replace(/<!\[CDATA\[|\]\]>/g, '')).trim() : '';
-        };
-        const rawTitle = pick('title');            // "Company: Job Title"
-        const link = pick('link');
-        const region = pick('region') || 'See posting';
-        const date = pick('pubDate');
-        if (!rawTitle || !link) continue;
-        const [company, ...rest] = rawTitle.split(': ');
-        let title = rest.join(': ') || rawTitle;
-        if (!TITLE_OK.test(title)) continue;
-        if (/U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only/i.test(title + ' ' + region)) continue;
-        const sal = /\$\s?\d[\d,.]*k?(?:\s?[-–]\s?\$?\d[\d,.]*k?)?(?:\s?\/\s?(?:year|yr|month|mo|hour|hr))?/i.exec(title);
-        title = title.split(/ — | – | \(|\||,? \$/)[0].replace(/[-–—\s]+$/, '').trim() || title;
-        jobs.push({ title, company: company || '', url: link, location: region, date, salary: sal ? sal[0].replace(/\s+/g, '') : '', source: 'WeWorkRemotely' });
-      }
-    }
-  } catch { /* one source down is fine */ }
+  // All sources in parallel; any one failing is fine.
+  const results = await Promise.allSettled([
+    fetchRemotive(), fetchRemoteOK(), fetchWWR(),
+    fetchJobicy('europe'), fetchJobicy('anywhere'),
+  ]);
+  const jobs = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
   // Newest first, dedupe by company+title, cap.
   jobs.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -156,9 +101,110 @@ async function jobsFeed(cors) {
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(j);
-    if (out.length >= 20) break;
+    if (out.length >= 40) break;
   }
-  return json({ ok: true, jobs: out }, 200, cors);
+
+  const body = JSON.stringify({ ok: true, jobs: out });
+  if (out.length >= 5) {
+    await cache.put(FEED_CACHE_KEY, new Response(body, {
+      headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=600' },
+    })).catch(() => {});
+  }
+  return new Response(body, { status: 200, headers: { ...JSON_HEADERS, ...cors } });
+}
+
+// Remotive: public API with candidate_required_location (its category param is
+// unreliable — filter on the response's fields instead)
+async function fetchRemotive() {
+  const jobs = [];
+  const r = await fetch('https://remotive.com/api/remote-jobs?search=customer%20support&limit=100', CF_CACHE);
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of d.jobs || []) {
+    if (!TITLE_OK.test((j.title || '') + ' ' + (j.category || ''))) continue;
+    const loc = j.candidate_required_location || '';
+    if (loc && !LOCATION_OK.test(loc)) continue;
+    if (US_ONLY.test((j.title || '') + ' ' + loc)) continue;
+    jobs.push({
+      title: j.title, company: j.company_name, url: j.url,
+      location: loc || 'Not specified', date: j.publication_date,
+      salary: j.salary || '', source: 'Remotive',
+    });
+  }
+  return jobs;
+}
+
+// RemoteOK: public API; first element is a legal notice
+async function fetchRemoteOK() {
+  const jobs = [];
+  const r = await fetch('https://remoteok.com/api?tags=customer%20support', { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of (Array.isArray(d) ? d : [])) {
+    if (!j || !j.position || !j.url) continue;
+    if (!TITLE_OK.test(j.position)) continue;
+    const loc = j.location || '';
+    if (loc && !LOCATION_OK.test(loc)) continue;
+    if (US_ONLY.test(j.position + ' ' + loc)) continue;
+    const salary = j.salary_min ? `$${Math.round(j.salary_min/1000)}k–$${Math.round((j.salary_max||j.salary_min)/1000)}k` : '';
+    jobs.push({
+      title: j.position, company: j.company, url: j.url,
+      location: loc || 'Not specified', date: j.date, salary, source: 'RemoteOK',
+    });
+  }
+  return jobs;
+}
+
+// We Work Remotely: customer-support RSS
+async function fetchWWR() {
+  const jobs = [];
+  const r = await fetch('https://weworkremotely.com/categories/remote-customer-support-jobs.rss', { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const xml = await r.text();
+  for (const it of xml.split('<item>').slice(1)) {
+    const pick = tag => {
+      const m = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(it);
+      return m ? stripTags(m[1].replace(/<!\[CDATA\[|\]\]>/g, '')).trim() : '';
+    };
+    const rawTitle = pick('title');            // "Company: Job Title"
+    const link = pick('link');
+    const region = pick('region') || 'See posting';
+    const date = pick('pubDate');
+    if (!rawTitle || !link) continue;
+    const [company, ...rest] = rawTitle.split(': ');
+    let title = rest.join(': ') || rawTitle;
+    if (!TITLE_OK.test(title)) continue;
+    if (US_ONLY.test(title + ' ' + region)) continue;
+    const sal = /\$\s?\d[\d,.]*k?(?:\s?[-–]\s?\$?\d[\d,.]*k?)?(?:\s?\/\s?(?:year|yr|month|mo|hour|hr))?/i.exec(title);
+    title = title.split(/ — | – | \(|\||,? \$/)[0].replace(/[-–—\s]+$/, '').trim() || title;
+    jobs.push({ title, company: company || '', url: link, location: region, date, salary: sal ? sal[0].replace(/\s+/g, '') : '', source: 'WeWorkRemotely' });
+  }
+  return jobs;
+}
+
+// Jobicy: public API with region + industry filters (credit: jobicy.com)
+async function fetchJobicy(geo) {
+  const jobs = [];
+  const r = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&industry=supporting`, { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of d.jobs || []) {
+    if (!j.jobTitle || !j.url) continue;
+    if (!TITLE_OK.test(j.jobTitle)) continue;
+    const loc = Array.isArray(j.jobGeo) ? j.jobGeo.join(', ') : (j.jobGeo || '');
+    if (loc && !LOCATION_OK.test(loc)) continue;
+    if (US_ONLY.test(j.jobTitle + ' ' + loc)) continue;
+    let salary = '';
+    if (j.annualSalaryMin) {
+      const cur = j.salaryCurrency === 'EUR' ? '€' : j.salaryCurrency === 'GBP' ? '£' : '$';
+      salary = `${cur}${Math.round(j.annualSalaryMin/1000)}k–${cur}${Math.round((j.annualSalaryMax||j.annualSalaryMin)/1000)}k`;
+    }
+    jobs.push({
+      title: j.jobTitle, company: j.companyName || '', url: j.url,
+      location: loc || 'Not specified', date: j.pubDate, salary, source: 'Jobicy',
+    });
+  }
+  return jobs;
 }
 
 // ---------------------------------------------------------------- fetch-job

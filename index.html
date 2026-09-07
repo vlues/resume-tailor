@@ -542,16 +542,22 @@ function feedRows(jobs){
   }).join('');
 }
 async function loadFeed(){
-  $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
   feedExpanded = false;
+  // show the cached copy instantly, then refresh it in the background
+  try {
+    const cached = JSON.parse(store.read('rt_feed') || 'null');
+    if (cached && cached.length) { feedAll = cached; $('feedList').innerHTML = feedRows(feedAll.slice(0, 10)); }
+    else $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
+  } catch { $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>'; }
   try {
     const r = await fetch(API_BASE + '/api/jobs');
     const d = await r.json();
     if (!d.jobs || !d.jobs.length) throw new Error('empty');
     feedAll = d.jobs;
-    $('feedList').innerHTML = feedRows(feedAll.slice(0, 8));
+    store.write('rt_feed', JSON.stringify(feedAll));
+    if (!feedExpanded) $('feedList').innerHTML = feedRows(feedAll.slice(0, 10));
   } catch {
-    $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — tap 🔄 More jobs, or paste a job link below.</p>';
+    if (!feedAll.length) $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — tap 🔄 More jobs, or paste a job link below.</p>';
   }
 }
 $('feedList').addEventListener('click', e => {
