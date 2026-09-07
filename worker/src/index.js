@@ -137,10 +137,12 @@ async function jobsFeed(cors) {
         const date = pick('pubDate');
         if (!rawTitle || !link) continue;
         const [company, ...rest] = rawTitle.split(': ');
-        const title = rest.join(': ') || rawTitle;
+        let title = rest.join(': ') || rawTitle;
         if (!TITLE_OK.test(title)) continue;
-        if (region && /USA only|US only|Canada only/i.test(region)) continue;
-        jobs.push({ title, company: company || '', url: link, location: region, date, salary: '', source: 'WeWorkRemotely' });
+        if (/U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only/i.test(title + ' ' + region)) continue;
+        const sal = /\$\s?\d[\d,.]*k?(?:\s?[-–]\s?\$?\d[\d,.]*k?)?(?:\s?\/\s?(?:year|yr|month|mo|hour|hr))?/i.exec(title);
+        title = title.split(/ — | – | \(|\||,? \$/)[0].replace(/[-–—\s]+$/, '').trim() || title;
+        jobs.push({ title, company: company || '', url: link, location: region, date, salary: sal ? sal[0].replace(/\s+/g, '') : '', source: 'WeWorkRemotely' });
       }
     }
   } catch { /* one source down is fine */ }

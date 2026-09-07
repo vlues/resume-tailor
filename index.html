@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#7c5cff">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tailor">
 <title>Resume Tailor ✂️</title>
 <meta name="description" content="Paste a job link, get a resume tailored to it — ATS-safe, honest, with a match score.">
 <style>
@@ -21,6 +24,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,
 header{text-align:center;padding:22px 16px 6px}
 header h1{margin:0;font-size:1.7rem}
 header p{margin:6px 0 0;color:var(--muted);font-size:.95rem}
+.job-row{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:13px 4px;position:relative;color:var(--ink)}
+.job-row:last-child{border-bottom:0}
+.job-row:active{background:var(--bg)}
+.job-row b{display:block;font-size:.97rem;padding-right:22px}
+.job-row .meta{color:var(--muted);font-size:.84rem;margin-top:2px;display:block}
+.job-row::after{content:"›";position:absolute;right:6px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1.3rem}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.85rem;margin:16px 0 12px}
+.or::before,.or::after{content:"";flex:1;border-top:1px solid var(--line)}
+.slim{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:4px 0;text-align:left;color:var(--ink);font-size:.95rem}
+.slim .tickball{flex:none;width:26px;height:26px;border-radius:50%;background:var(--good);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+.slim span.lnk{color:var(--brand);font-weight:600;margin-left:auto;flex:none}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-top:16px}
 .card h2{margin:0 0 4px;font-size:1.05rem;display:flex;align-items:center;gap:8px}
 .card .hint{color:var(--muted);font-size:.88rem;margin:0 0 12px}
@@ -84,44 +98,46 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <body>
 <header>
   <h1>Resume Tailor ✂️</h1>
-  <p>Paste a job link. Get your resume rewritten for <em>that</em> job — honest, ATS-friendly, ready to send.</p>
+  <p>Tap a job. Get your resume rewritten for it — ready to send.</p>
 </header>
 
 <div class="wrap">
 
   <!-- STEP 1: resume -->
   <section class="card" id="resumeCard">
-    <h2><span class="step">1</span> Your resume <span id="savedPill" class="saved-pill" style="display:none">✓ saved on this phone</span></h2>
-    <p class="hint">Do this once — it stays saved here. Paste the text, or upload the file.</p>
     <div id="resumeCollapsed" style="display:none">
-      <div class="row">
-        <button class="btn small" id="editResumeBtn">✏️ View / update resume</button>
-      </div>
+      <button class="slim" id="editResumeBtn"><span class="tickball">✓</span> Resume saved on this phone <span class="lnk">Change</span></button>
     </div>
     <div id="resumeOpen">
+      <h2><span class="step">1</span> Your resume — once</h2>
+      <p class="hint">Paste it or upload the file. It stays saved on this phone.</p>
       <textarea id="resumeText" placeholder="Paste your whole resume here…"></textarea>
       <div class="row">
         <label class="btn small" style="display:inline-flex;align-items:center;gap:6px">
-          📄 Upload file (.docx / .pdf / .txt)
+          📄 Upload file
           <input type="file" id="resumeFile" accept=".docx,.pdf,.txt,.rtf" style="display:none">
         </label>
-        <button class="btn small good" id="saveResumeBtn">💾 Save resume</button>
+        <button class="btn small good" id="saveResumeBtn">✓ Done</button>
       </div>
       <p class="muted" id="fileStatus"></p>
+      <details class="adv" id="profileDetails">
+        <summary>🌍 Your situation (already filled in — tap to check)</summary>
+        <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
+        <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
+      </details>
     </div>
-    <details class="adv" id="profileDetails">
-      <summary>🌍 Your situation (helps every tailoring — saved)</summary>
-      <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
-      <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
-    </details>
   </section>
 
-  <!-- STEP 2: job -->
+  <!-- STEP 2: pick a job -->
   <section class="card">
-    <h2><span class="step">2</span> The job</h2>
-    <p class="hint">One tap: copy the job link in the other app, come back, hit the button. (A pasted link starts by itself.)</p>
-    <button class="btn" id="pasteGoBtn" style="width:100%;padding:14px;font-size:1rem;border-color:var(--brand);color:var(--brand)">📋 Paste &amp; Tailor — one tap</button>
-    <textarea id="jobInput" style="margin-top:10px;min-height:90px" placeholder="…or paste the job link or the whole job description here" autocapitalize="off"></textarea>
+    <h2><span class="step">2</span> Pick a job</h2>
+    <p class="hint">Fresh remote customer-service jobs you can work from Kosovo or Spain — newest first. <b>Tap one and it starts.</b></p>
+    <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
+    <div class="row" style="margin-top:4px"><button class="btn small" id="feedRefresh">🔄 More jobs</button></div>
+
+    <div class="or">or a job you found yourself</div>
+    <textarea id="jobInput" style="min-height:74px" placeholder="Paste the job link (or the whole job description) here" autocapitalize="off"></textarea>
+    <button class="primary" id="tailorBtn" style="margin-top:12px">✂️ Tailor my resume</button>
   </section>
 
   <!-- access code (only shows if the API requires one) -->
@@ -131,7 +147,6 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     <input type="password" id="accessCode" placeholder="Access code" autocomplete="off">
   </section>
 
-  <button class="primary" id="tailorBtn">✂️ Tailor my resume</button>
   <div id="loadingMsg"></div>
   <div class="error" id="errBox"></div>
 
@@ -139,6 +154,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
   <section class="card" id="results" style="display:none">
     <h2 id="resultTitle">🎯 Tailored for this job</h2>
     <p class="hint" id="resultSub"></p>
+    <button class="btn small" id="appliedBtn" style="margin-bottom:12px">✅ I applied — remind me to follow up</button>
     <div class="score-wrap">
       <div class="ring">
         <svg width="110" height="110" viewBox="0 0 110 110">
@@ -206,19 +222,10 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     </div>
   </section>
 
-  <!-- jobs feed: found for her, one tap tailors -->
-  <section class="card" id="feedCard">
-    <h2>✨ Fresh jobs, found for you</h2>
-    <p class="hint">Remote customer service you can work from Kosovo or Spain, newest first. <b>Tap one — everything else happens by itself.</b></p>
-    <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
-    <div class="row"><button class="btn small" id="feedRefresh">🔄 Refresh</button>
-      <a class="btn small" href="https://www.linkedin.com/jobs/search/?keywords=remote%20customer%20support&location=European%20Union&f_WT=2&f_TPR=r86400" target="_blank" rel="noopener" style="text-decoration:none">More on LinkedIn</a></div>
-  </section>
-
   <!-- history -->
   <section class="card" id="historyCard" style="display:none">
-    <h2>🕘 Recent jobs</h2>
-    <p class="hint">Each one keeps its own tailored resume — tap to reopen.</p>
+    <h2>🕘 Your applications</h2>
+    <p class="hint">Tap ✅ after you apply — you’ll get a follow-up reminder here 5 days later.</p>
     <div id="historyList"></div>
   </section>
 
@@ -238,7 +245,6 @@ const store = {
 // ---------- resume save/restore ----------
 function refreshResumeUI(){
   const has = store.read('rt_resume').length > 100;
-  $('savedPill').style.display = has ? 'inline-flex' : 'none';
   $('resumeCollapsed').style.display = has ? 'block' : 'none';
   $('resumeOpen').style.display = has ? 'none' : 'block';
   if (has) $('resumeText').value = store.read('rt_resume');
@@ -287,8 +293,9 @@ $('resumeFile').addEventListener('change', async e => {
     text = text.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
     if (text.length < 100) throw new Error('Couldn’t read much text from that file — try pasting instead.');
     $('resumeText').value = text;
-    store.write('rt_resume', text); $('savedPill').style.display = 'inline-flex';
+    store.write('rt_resume', text);
     $('fileStatus').textContent = '✓ Loaded and saved ' + f.name + '.';
+    toast('Resume saved ✓');
   } catch(err){
     $('fileStatus').textContent = '';
     showErr('Couldn’t read that file (' + err.message + '). Easiest fix: open it, select all, copy, and paste above.');
@@ -378,19 +385,16 @@ async function doTailor(){
     showErr('Network hiccup — check your signal and try again.');
   }
 }
-$('tailorBtn').onclick = doTailor;
-
-// One-tap: read the clipboard, fill the box, and go.
-$('pasteGoBtn').onclick = async () => {
-  try {
-    const t = (await navigator.clipboard.readText() || '').trim();
-    if (!t) throw new Error('empty');
-    $('jobInput').value = t;
-    doTailor();
-  } catch {
-    $('jobInput').focus();
-    toast('Long-press the box and tap Paste');
+// One smart button: uses the box if filled, otherwise grabs the copied link.
+$('tailorBtn').onclick = async () => {
+  if (!$('jobInput').value.trim()) {
+    try {
+      const t = (await navigator.clipboard.readText() || '').trim();
+      if (t && (looksLikeUrl(t) || t.length > 80)) { $('jobInput').value = t; toast('Pasted from clipboard'); }
+    } catch { /* clipboard not available — fall through */ }
   }
+  if (!$('jobInput').value.trim()) { $('jobInput').focus(); return showErr('Tap a job above, or copy a job link and hit the button again.'); }
+  doTailor();
 };
 
 // A pasted link starts tailoring by itself.
@@ -404,7 +408,7 @@ $('resumeText').addEventListener('input', () => {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const v = $('resumeText').value.trim();
-    if (v.length > 100) { store.write('rt_resume', v); $('savedPill').style.display = 'inline-flex'; }
+    if (v.length > 100) store.write('rt_resume', v);
   }, 800);
 });
 
@@ -527,54 +531,102 @@ function timeAgo(d){
   const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
 }
+let feedAll = [], feedExpanded = false;
+function feedRows(jobs){
+  return jobs.map(j => {
+    const where = /anywhere/i.test(j.location) ? 'Work from anywhere' : esc(j.location);
+    return '<button class="job-row" data-url="'+esc(j.url)+'">'+
+      '<b>'+esc(j.title)+'</b>'+
+      '<span class="meta">'+esc(j.company)+' · '+where+(j.salary ? ' · '+esc(j.salary) : '')+' · '+esc(timeAgo(j.date))+'</span>'+
+    '</button>';
+  }).join('');
+}
 async function loadFeed(){
   $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
+  feedExpanded = false;
   try {
     const r = await fetch(API_BASE + '/api/jobs');
     const d = await r.json();
     if (!d.jobs || !d.jobs.length) throw new Error('empty');
-    $('feedList').innerHTML = d.jobs.map((j,i) =>
-      '<button class="btn" data-url="'+esc(j.url)+'" style="display:block;width:100%;text-align:left;margin-top:8px">'+
-        '<b>'+esc(j.title)+'</b> · '+esc(j.company)+'<br>'+
-        '<span class="muted">🌍 '+esc(j.location)+ (j.salary ? ' · 💰 '+esc(j.salary) : '') +' · '+esc(timeAgo(j.date))+'</span>'+
-      '</button>').join('');
+    feedAll = d.jobs;
+    $('feedList').innerHTML = feedRows(feedAll.slice(0, 8));
   } catch {
-    $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — pull down to refresh, or paste any job link above.</p>';
+    $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — tap 🔄 More jobs, or paste a job link below.</p>';
   }
 }
 $('feedList').addEventListener('click', e => {
   const b = e.target.closest('button[data-url]'); if (!b) return;
   $('jobInput').value = b.dataset.url;
   doTailor();
-  window.scrollTo({top: $('tailorBtn').offsetTop - 100, behavior: 'smooth'});
+  window.scrollTo({top: $('loadingMsg').offsetTop - 160, behavior: 'smooth'});
 });
-$('feedRefresh').onclick = loadFeed;
+$('feedRefresh').onclick = () => {
+  if (!feedExpanded && feedAll.length > 8) { $('feedList').innerHTML = feedRows(feedAll); feedExpanded = true; }
+  else loadFeed();
+};
 loadFeed();
 
-// ---------- history: each job keeps its own tailored resume ----------
+// ---------- history + applied tracker ----------
+let currentHistId = null;
 function readHistory(){ try{ return JSON.parse(store.read('rt_history')||'[]') }catch{ return [] } }
+function writeHistory(h){ store.write('rt_history', JSON.stringify(h.slice(0, 12))); }
 function saveHistory(r){
   const h = readHistory();
-  h.unshift({ when: Date.now(), label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job', result: r });
-  store.write('rt_history', JSON.stringify(h.slice(0, 12)));
+  currentHistId = Date.now();
+  h.unshift({ when: currentHistId, label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job', result: r });
+  writeHistory(h);
   renderHistory();
+  refreshAppliedBtn();
+}
+function entryById(id){ return readHistory().find(e => e.when === id); }
+function refreshAppliedBtn(){
+  const e = currentHistId && entryById(currentHistId);
+  const b = $('appliedBtn');
+  if (!e) { b.style.display = 'none'; return; }
+  b.style.display = 'inline-block';
+  if (e.appliedAt) {
+    b.textContent = '✓ Applied ' + new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    b.classList.add('good');
+  } else {
+    b.textContent = '✅ I applied — remind me to follow up';
+    b.classList.remove('good');
+  }
+}
+$('appliedBtn').onclick = () => {
+  const h = readHistory();
+  const e = h.find(x => x.when === currentHistId); if (!e) return;
+  e.appliedAt = e.appliedAt ? null : Date.now();
+  writeHistory(h); renderHistory(); refreshAppliedBtn();
+  if (e.appliedAt) toast('Good luck! 🍀 I’ll nudge you in 5 days');
+};
+function historyStatus(e){
+  if (!e.appliedAt) return 'Not applied yet';
+  const days = Math.floor((Date.now() - e.appliedAt) / 86400000);
+  if (days >= 5) return '⏰ Time to follow up! Tap → 💌 Messages';
+  return '✓ Applied · follow up ' + new Date(e.appliedAt + 5*86400000).toLocaleDateString(undefined,{weekday:'short'});
 }
 function renderHistory(){
   const h = readHistory();
   $('historyCard').style.display = h.length ? 'block' : 'none';
   $('historyList').innerHTML = h.map((e,i)=>{
-    const d = new Date(e.when);
-    const when = d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
-    return '<button class="btn" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin-top:8px">'+
-      '<b>'+esc(e.label)+'</b><br><span class="muted">'+when+' · '+ (e.result && e.result.match_after != null ? clamp(e.result.match_after)+'% match' : '') +'</span></button>';
+    const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    const pct = e.result && e.result.match_after != null ? clamp(e.result.match_after)+'% · ' : '';
+    return '<button class="job-row" data-i="'+i+'">'+
+      '<b>'+esc(e.label)+'</b>'+
+      '<span class="meta">'+when+' · '+pct+esc(historyStatus(e))+'</span></button>';
   }).join('');
 }
 $('historyList').addEventListener('click', e=>{
   const b = e.target.closest('button[data-i]'); if (!b) return;
   const entry = readHistory()[Number(b.dataset.i)];
-  if (entry) { render(entry.result, true); }
+  if (entry) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
 });
 renderHistory();
+// gentle nudge when a follow-up is due
+(() => {
+  const due = readHistory().find(e => e.appliedAt && Date.now() - e.appliedAt >= 5*86400000);
+  if (due) setTimeout(()=> toast('⏰ Follow up on: ' + due.label.slice(0,40)), 1500);
+})();
 
 function download(blob, name){
   const a = document.createElement('a');
