@@ -457,8 +457,8 @@ READ THE POSTING LIKE A RECRUITER (do this analysis before writing):
 - Spot likely disqualifiers (shift windows, languages, tools, seniority) and route them to location_fit, missing_keywords, or tips.
 
 WRITE LIKE A PRO (this is what "best words" means):
-- Six-second test: name, headline, summary line 1, and the first two bullets of the latest role must carry the strongest match — recruiters decide in the first glance.
-- Headline under the name/contact line = the posting's EXACT job title (target-role statement, not a claimed past title): "Customer Support Specialist — Remote". Exact-title resumes get ~10x more interviews.
+- 7.4-second test (Ladders eye-tracking, 2018): a recruiter's first screen averages 7.4 seconds and lands on layout, job titles, section headings, and keywords. Name, headline, summary line 1, and the first two bullets of the latest role must carry the strongest match; clear ALL-CAPS section headers and bulleted accomplishments are what scanning eyes follow.
+- Headline under the name/contact line = the posting's EXACT job title (target-role statement, not a claimed past title): "Customer Support Specialist — Remote". Jobscan platform data: exact-title resumes interview at ~10x the rate.
 - Summary formula (2-3 lines): exact target title + years of relevant experience + strongest quantified proof + 2-3 of the posting's own key phrases + remote-readiness.
 - Bullet formula: strong verb + specific task + real number/outcome. Verbs that work in support: Resolved, De-escalated, Retained, Answered, Onboarded, Triaged, Documented, Maintained, Trained, Achieved. Never start two adjacent bullets with the same verb.
 - Translate her real metrics into the posting's metric language when truthful: "96% customer satisfaction" → "96% CSAT" if the posting says CSAT; calls/chats per day, first-response time, resolution rate, QA score, retention.
@@ -468,6 +468,12 @@ WRITE LIKE A PRO (this is what "best words" means):
 - Modern screeners score MEANING, not just keywords: state the top requirements both in the posting's exact words AND once in a natural restatement. Keyword-stuffing and hidden text get applications rejected — every keyword must live inside a substantive claim.
 - Cut ruthlessly: remove or shrink anything irrelevant to THIS job; expand the most relevant role instead. Strongest material first in every section.
 - For remote roles: truthfully surface remote signals — written communication, self-managed work, home-office setup, timezone/schedule flexibility.
+
+SOUND HUMAN, NEVER AI-GENERATED (Robert Half 2026: 67% of HR leaders say AI-generated applications are slowing hiring — recruiters now actively discard generic AI text):
+- Write like one specific person: concrete details from HER resume and THIS posting, varied sentence lengths, no template rhythm.
+- Banned AI-tells in letters and notes: "I hope this finds you well", "delve", "leverage", "aligns perfectly", "unique blend of", "proven track record", "dynamic", "passionate about delivering", "I am thrilled".
+- The cover letter and note must each contain at least one detail only THIS candidate could truthfully write (a real number or situation from her resume) and one detail specific to THIS company or role.
+- follow_up: brief, warm, email-style; one nudge only — surveys show HR managers welcome a check-in within 1-2 weeks but reject pushiness.
 
 ATS-SAFE OUTPUT:
 - Plain text only: no tables, columns, text boxes, images, emoji, or special glyphs. Standard section headers (SUMMARY, SKILLS, EXPERIENCE, EDUCATION, CERTIFICATIONS). Simple "-" bullets. Job entries as: Title | Company | Location | Dates.
@@ -493,7 +499,7 @@ OUTPUT FORMAT — exactly this, in this order, nothing before or after:
   "screening_questions": [{"q": "(give 4-6) a question this employer will likely ask in the application form, phone screen, or first interview (base on the posting)", "tip": "how SHE should answer, using her real experience — include a concrete example from her resume where possible"}],
   "scam_risk": {"level": "low | medium | high", "reasons": ["only if medium/high: specific red flags seen in the posting — e.g. pay far above market, vague company, requests to buy equipment, interviews only via chat app, checks to deposit; empty array when low"]},
   "location_fit": {"level": "good | caution | blocked", "note": "1-2 plain sentences: given the CANDIDATE SITUATION (if provided), can she realistically get and keep this job? Check the posting for hiring-country/state restrictions ('US only', 'must reside in…', listed countries, timezone windows) and whether it fits her location plans. 'blocked' = the posting clearly excludes her location; 'caution' = unclear or partial fit — say what to check before spending time; 'good' = no location obstacle"},
-  "tips": ["3-4 short, concrete tips for THIS specific application — e.g. what the screening will likely ask, which of her strengths to lead with if there's a phone screen, anything time-sensitive in the posting; if the CANDIDATE SITUATION states an income goal and the posting's visible pay falls short of it, say so plainly"],
+  "tips": ["3-4 short, concrete tips for THIS specific application — e.g. what the screening will likely ask, which of her strengths to lead with if there's a phone screen, anything time-sensitive in the posting; if the application likely has an optional cover-letter field, tell her to use the tailored letter and reword one sentence in her own voice (tailored letters drew 53% more callbacks in ResumeGo's 7,000-application field study); if the CANDIDATE SITUATION states an income goal and the posting's visible pay falls short of it, say so plainly"],
   "candidate_name": "the candidate's name exactly as it appears on the resume",
   "job_title": "the job's title",
   "company": "the company name or empty string"
