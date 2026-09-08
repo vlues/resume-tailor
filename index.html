@@ -516,6 +516,12 @@ function render(r, fromHistory){
   lastFollowUp = r.follow_up || '';
   lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
   if (!fromHistory) saveHistory(r);
+  // preload the Word library so the download tap is instant (keeps iOS's
+  // share sheet inside the tap-gesture window)
+  if (!window._docxPreload) {
+    window._docxPreload = 1;
+    setTimeout(()=> loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js').catch(()=>{}), 1500);
+  }
   $('resultTitle').textContent = '🎯 Tailored for this job';
   const ojb = $('openJobBtn');
   if (r.job_url) { ojb.href = r.job_url; ojb.style.display = 'inline-block'; }
@@ -639,7 +645,7 @@ $('dlWordBtn').onclick = async ()=>{
   const old = $('dlWordBtn').textContent;
   $('dlWordBtn').textContent = '⬇️ Making it…';
   try {
-    await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
+    if (!window.docx) await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
     const D = window.docx;
     const lines = lastResume.replace(/\r/g,'').split('\n');
     const paras = [];
@@ -663,12 +669,12 @@ $('dlWordBtn').onclick = async ()=>{
     });
     const doc = new D.Document({ sections: [{ properties: {}, children: paras }] });
     const blob = await D.Packer.toBlob(doc);
-    download(blob, fileName('.docx'));
+    await download(blob, fileName('.docx'));
   } catch {
     const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
       '<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
       esc(lastResume) + '</body></html>';
-    download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
+    await download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
   }
   $('dlWordBtn').textContent = old;
 };
@@ -870,11 +876,25 @@ renderDue();
   } catch {}
 })();
 
-function download(blob, name){
+async function download(blob, name){
+  // iPhone/iPad (especially the home-screen app, where downloads barely work):
+  // the share sheet is the reliable way — Save to Files, or straight into Mail.
+  try {
+    const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      await navigator.share({ files: [file] });
+      toast('Saved ✓');
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;   // she closed the share sheet — fine
+    /* NotAllowed or unsupported → fall through to normal download */
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  // keep the blob alive long enough for the save dialog (500ms used to kill it)
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 120000);
 }
 </script>
 </body>
