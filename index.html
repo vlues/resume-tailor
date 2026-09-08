@@ -133,7 +133,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
   <!-- STEP 2: pick a job -->
   <section class="card">
     <h2><span class="step">2</span> Pick a job</h2>
-    <p class="hint">Fresh remote customer-service jobs you can work from Kosovo or Spain — newest first. <b>Tap one and it starts.</b></p>
+    <p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b></p>
     <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
     <div class="row" style="margin-top:4px"><button class="btn small" id="feedRefresh">🔄 More jobs</button></div>
 
@@ -156,7 +156,10 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
   <section class="card" id="results" style="display:none">
     <h2 id="resultTitle">🎯 Tailored for this job</h2>
     <p class="hint" id="resultSub"></p>
-    <button class="btn small" id="appliedBtn" style="margin-bottom:12px">✅ I applied — remind me to follow up</button>
+    <div class="row" style="margin:0 0 12px">
+      <button class="btn small" id="appliedBtn">✅ I applied — remind me to follow up</button>
+      <a class="btn small" id="openJobBtn" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none">🔗 Open job page</a>
+    </div>
     <div class="score-wrap">
       <div class="ring">
         <svg width="110" height="110" viewBox="0 0 110 110">
@@ -383,14 +386,24 @@ async function doTailor(){
 
     const r2 = await fetch(API_BASE + '/api/tailor', {
       method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
-      body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim() })
+      body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim(), stream: true })
     });
-    const d2 = await r2.json();
-    stopLoading(); tailoring = false;
-    if (!r2.ok || d2.error) return showErr(d2.message || 'Something went wrong — try again.');
+    const ctype = r2.headers.get('content-type') || '';
+    let result;
+    if (!r2.ok || ctype.includes('application/json')) {
+      const d2 = await r2.json();
+      stopLoading(); tailoring = false;
+      if (!r2.ok || d2.error) return showErr(d2.message || 'Something went wrong — try again.');
+      result = d2.result;
+    } else {
+      result = await consumeStream(r2);      // types the resume live as it writes
+      stopLoading(); tailoring = false;
+      if (!result) return showErr('The AI answered in a weird format — tap Tailor again.');
+    }
+    if (jobUrl) result.job_url = jobUrl;
     $('jobInput').value = '';   // ready for the next job
     $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
-    render(d2.result);
+    render(result);
   } catch(err){
     stopLoading(); tailoring = false;
     showErr(err && err.name === 'AbortError'
@@ -427,6 +440,53 @@ $('resumeText').addEventListener('input', () => {
   }, 800);
 });
 
+// ---------- streaming: type the resume live while Claude writes ----------
+function startStreamView(){
+  $('results').style.display = 'block';
+  $('resultTitle').textContent = '🎯 Writing your resume…';
+  $('resultSub').textContent = '';
+  $('outResume').textContent = '';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane==='paneResume'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id==='paneResume'));
+  $('results').scrollIntoView({behavior:'smooth'});
+}
+async function consumeStream(resp){
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', full = '', started = false, lastPaint = 0;
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream: true});
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue;
+      let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+      if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
+        full += ev.delta.text;
+        const rm = /===RESUME===\s*([\s\S]*?)(?:\s*===DATA===[\s\S]*)?$/.exec(full);
+        if (rm && rm[1]) {
+          if (!started) { started = true; clearInterval(loadTimer); $('loadingMsg').textContent = 'Watch it write ↓  (details land at the end)'; startStreamView(); }
+          const now = Date.now();
+          if (now - lastPaint > 120) { $('outResume').textContent = rm[1]; lastPaint = now; }
+        }
+      }
+    }
+  }
+  const m = /===RESUME===\s*([\s\S]*?)\s*===DATA===\s*([\s\S]*)/.exec(full);
+  if (!m) return null;
+  let tail = m[2].trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  let parsed = null;
+  try { parsed = JSON.parse(tail); } catch {
+    const s = tail.indexOf('{'), e = tail.lastIndexOf('}');
+    if (s >= 0 && e > s) { try { parsed = JSON.parse(tail.slice(s, e + 1)); } catch {} }
+  }
+  parsed = parsed || {};
+  parsed.tailored_resume = m[1].trim();
+  return parsed;
+}
+
 // ---------- render results ----------
 let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '', lastLetter = '', lastFollowUp = '', lastTitle = '';
 function render(r, fromHistory){
@@ -439,6 +499,10 @@ function render(r, fromHistory){
   lastFollowUp = r.follow_up || '';
   lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
   if (!fromHistory) saveHistory(r);
+  $('resultTitle').textContent = '🎯 Tailored for this job';
+  const ojb = $('openJobBtn');
+  if (r.job_url) { ojb.href = r.job_url; ojb.style.display = 'inline-block'; }
+  else ojb.style.display = 'none';
   $('results').style.display = 'block';
   $('resultSub').textContent = lastJob ? lastJob : '';
 
@@ -581,14 +645,24 @@ function timeAgo(d){
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
 }
 let feedAll = [], feedExpanded = false;
+function seenUrls(){ try{ return new Set(JSON.parse(store.read('rt_seen')||'[]')) }catch{ return new Set() } }
 function feedRows(jobs){
+  const seen = seenUrls();
   return jobs.map(j => {
     const where = /anywhere/i.test(j.location) ? 'Work from anywhere' : esc(j.location);
+    const isNew = !seen.has(j.url);
     return '<button class="job-row" data-url="'+esc(j.url)+'">'+
-      '<b>'+esc(j.title)+'</b>'+
+      '<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+'</b>'+
       '<span class="meta">'+esc(j.company)+' · '+where+(j.salary ? ' · '+esc(j.salary) : '')+' · '+esc(timeAgo(j.date))+'</span>'+
     '</button>';
   }).join('');
+}
+function markSeen(jobs){
+  try {
+    const s = seenUrls();
+    jobs.forEach(j => s.add(j.url));
+    store.write('rt_seen', JSON.stringify([...s].slice(-300)));
+  } catch {}
 }
 async function loadFeed(){
   feedExpanded = false;
@@ -605,6 +679,7 @@ async function loadFeed(){
     feedAll = d.jobs;
     store.write('rt_feed', JSON.stringify(feedAll));
     if (!feedExpanded) $('feedList').innerHTML = feedRows(feedAll.slice(0, 10));
+    setTimeout(()=> markSeen(feedAll), 4000);   // dots show this visit, gone next
   } catch {
     if (!feedAll.length) $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — tap 🔄 More jobs, or paste a job link below.</p>';
   }

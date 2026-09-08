@@ -71,7 +71,7 @@ function json(obj, status, cors) {
 const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote[- ]?first|kosovo|spain|utc|cet|balkan/i;
 const TITLE_OK = /customer|support|success|service|helpdesk|help desk|client|community|care|happiness/i;
 const US_ONLY = /U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only/i;
-const FEED_CACHE_KEY = 'https://resume-tailor.internal/jobs-feed-v4';
+const FEED_CACHE_KEY = 'https://resume-tailor.internal/jobs-feed-v5';
 const UA = { 'User-Agent': 'ResumeTailor/1.0' };
 const CF_CACHE = { cf: { cacheTtl: 900, cacheEverything: true } };
 
@@ -90,19 +90,36 @@ async function jobsFeed(cors) {
     fetchJobicy('europe'), fetchJobicy('anywhere'),
     fetchJobicy('europe', 'customer'), fetchJobicy('anywhere', 'customer'),
     ...GH_BOARDS.map(fetchGreenhouseBoard),
+    ...ASHBY_BOARDS.map(fetchAshbyBoard),
   ]);
   const jobs = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
-  // Newest first, dedupe by company+title, cap.
-  jobs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Rank by "landable for her": entry/mid support roles first, senior
+  // leadership down, work-from-anywhere and posted-salary up, fresher up.
+  const now = Date.now();
+  for (const j of jobs) {
+    let s = 0;
+    const t = j.title || '', loc = j.location || '';
+    const days = Math.max(0, (now - new Date(j.date).getTime()) / 86400000) || 10;
+    s -= Math.min(days, 30) * 1.5;
+    if (/anywhere|worldwide|global/i.test(loc)) s += 8;
+    else if (/emea|europe/i.test(loc)) s += 6;
+    if (j.salary) s += 3;
+    if (/director|head of|vp|vice president|principal|\blead\b|manager,? (of|customer success managers)/i.test(t)) s -= 14;
+    else if (/senior|\bsr\.?\b|staff\b/i.test(t)) s -= 6;
+    if (/representative|specialist|associate|agent|advocate|advisor|coordinator|analyst|support engineer/i.test(t)) s += 5;
+    j._score = s;
+  }
+  jobs.sort((a, b) => b._score - a._score || new Date(b.date) - new Date(a.date));
   const seen = new Set();
   const out = [];
   for (const j of jobs) {
     const k = (j.company + '|' + j.title).toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
+    delete j._score;
     out.push(j);
-    if (out.length >= 50) break;
+    if (out.length >= 60) break;
   }
 
   const body = JSON.stringify({ ok: true, jobs: out });
@@ -201,6 +218,28 @@ async function fetchGreenhouseBoard(board) {
     jobs.push({
       title: j.title, company: board === 'remotecom' ? 'Remote.com' : board.charAt(0).toUpperCase() + board.slice(1),
       url: j.absolute_url, location: loc || 'Remote', date: j.updated_at || j.first_published,
+      salary: '', source: 'Company board',
+    });
+  }
+  return jobs;
+}
+
+// Ashby public posting API — more direct company boards with EMEA support roles.
+const ASHBY_BOARDS = ['posthog', 'supabase'];
+
+async function fetchAshbyBoard(board) {
+  const jobs = [];
+  const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${board}`, { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of d.jobs || []) {
+    if (!TITLE_OK.test(j.title || '')) continue;
+    const loc = [j.location, ...((j.secondaryLocations || []).map(x => x.location))].filter(Boolean).join('; ');
+    if (!/emea|europe|world|anywhere|global/i.test(loc + ' ' + j.title)) continue;
+    if (US_ONLY.test(j.title + ' ' + loc)) continue;
+    jobs.push({
+      title: j.title, company: board.charAt(0).toUpperCase() + board.slice(1),
+      url: j.jobUrl || j.applyUrl, location: loc || 'Remote', date: j.publishedAt,
       salary: '', source: 'Company board',
     });
   }
@@ -425,9 +464,12 @@ ATS-SAFE OUTPUT:
 - Include the exact keywords/phrases from the posting (spelled the same way, including both the acronym and spelled-out form when relevant) wherever they are truthful.
 - Keep it to roughly the same length as the original resume — one page-ish. Strongest, most relevant material first.
 
-Respond ONLY with valid JSON (no markdown fences) in exactly this shape:
+OUTPUT FORMAT — exactly this, in this order, nothing before or after:
+===RESUME===
+<the full plain-text tailored resume>
+===DATA===
+<ONLY a valid JSON object (no markdown fences) in exactly this shape — do NOT repeat the resume inside it>
 {
-  "tailored_resume": "full plain-text resume",
   "match_before": 0-100,
   "match_after": 0-100,
   "match_explanation": "2-3 plain sentences on how the scores were judged",
@@ -477,7 +519,7 @@ async function tailor(body, env, cors) {
   const profile = String(body.profile || '').trim().slice(0, 2000);
   const userMsg = `JOB POSTING:\n${jobText.slice(0, 16000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 12000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, ATS-safe plain text, concise, JSON only.`;
 
-  const callClaude = (model, maxTokens) => fetch('https://api.anthropic.com/v1/messages', {
+  const callClaude = (model, maxTokens, stream) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
@@ -487,20 +529,22 @@ async function tailor(body, env, cors) {
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
+      stream: !!stream,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMsg }],
     }),
   });
 
+  const wantStream = body.stream === true;
   let model = env.CLAUDE_MODEL || 'claude-sonnet-5';
-  let resp = await callClaude(model, 5000);
+  let resp = await callClaude(model, 5000, wantStream);
 
   // Key doesn't have the newest model → fall back once.
   if (!resp.ok && (resp.status === 404 || resp.status === 400)) {
     const errText = await resp.text().catch(() => '');
     if (/model/i.test(errText) && model !== 'claude-sonnet-4-5') {
       model = 'claude-sonnet-4-5';
-      resp = await callClaude(model, 5000);
+      resp = await callClaude(model, 5000, wantStream);
     } else {
       return json({ error: 'claude_error', message: 'The AI hit a snag. Try again in a moment.', detail: errText.slice(0, 300) }, 502, cors);
     }
@@ -508,7 +552,7 @@ async function tailor(body, env, cors) {
   // Momentarily overloaded → one automatic retry instead of a visible failure.
   if (!resp.ok && (resp.status === 529 || resp.status >= 500)) {
     await new Promise(r => setTimeout(r, 1500));
-    resp = await callClaude(model, 5000);
+    resp = await callClaude(model, 5000, wantStream);
   }
 
   if (!resp.ok) {
@@ -520,18 +564,38 @@ async function tailor(body, env, cors) {
     return json({ error: 'claude_error', message, detail: errText.slice(0, 300) }, status, cors);
   }
 
+  // Streaming: hand Anthropic's SSE straight through so the page can type
+  // the resume live. The frontend assembles and parses the marker format.
+  if (wantStream) {
+    return new Response(resp.body, {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', ...cors },
+    });
+  }
+
   let data = await resp.json();
   // Ran out of room mid-answer (huge posting) → one retry with more headroom.
   if (data.stop_reason === 'max_tokens') {
-    const r2 = await callClaude(model, 9000);
+    const r2 = await callClaude(model, 9000, false);
     if (r2.ok) data = await r2.json();
   }
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
-  const parsed = parseClaudeJson(text);
+  const parsed = assembleTailorResult(text);
   if (!parsed || !parsed.tailored_resume) {
     return json({ error: 'bad_ai_json', message: 'The AI answered in a weird format. Tap Tailor again.', raw: text.slice(0, 500) }, 502, cors);
   }
   return json({ ok: true, result: parsed, model }, 200, cors);
+}
+
+// "===RESUME=== … ===DATA=== {json}" → result object (falls back to plain JSON).
+function assembleTailorResult(text) {
+  const m = /===RESUME===\s*([\s\S]*?)\s*===DATA===\s*([\s\S]*)/.exec(text);
+  if (m) {
+    const parsed = parseClaudeJson(m[2]) || {};
+    parsed.tailored_resume = m[1].trim();
+    return parsed;
+  }
+  return parseClaudeJson(text);
 }
 
 function parseClaudeJson(text) {
