@@ -509,7 +509,7 @@ OUTPUT FORMAT — exactly this, in this order, nothing before or after:
   "company": "the company name or empty string"
 }
 
-apply_kit rules — the copy-paste kit for the application form itself:
+apply_kit rules — the copy-paste kit for the application form itself. MANDATORY: apply_kit must be present and fully populated in EVERY response — all five answers written, never empty, never omitted:
 - contact: values copied EXACTLY from the resume (empty string when absent — NEVER invented).
 - answers: exactly these five labels, in this order: "Why do you want to work here?", "Why are you a good fit?", "Salary expectation", "When can you start?", "Location & remote setup".
 - Each answer ≤ 35 words, first person allowed, written per the SOUND HUMAN rules — at least one real specific (her metric, their product); no banned phrases.
@@ -566,14 +566,14 @@ async function tailor(body, env, cors) {
 
   const wantStream = body.stream === true;
   let model = env.CLAUDE_MODEL || 'claude-sonnet-5';
-  let resp = await callClaude(model, 5000, wantStream);
+  let resp = await callClaude(model, 9000, wantStream);
 
   // Key doesn't have the newest model → fall back once.
   if (!resp.ok && (resp.status === 404 || resp.status === 400)) {
     const errText = await resp.text().catch(() => '');
     if (/model/i.test(errText) && model !== 'claude-sonnet-4-5') {
       model = 'claude-sonnet-4-5';
-      resp = await callClaude(model, 5000, wantStream);
+      resp = await callClaude(model, 9000, wantStream);
     } else {
       return json({ error: 'claude_error', message: 'The AI hit a snag. Try again in a moment.', detail: errText.slice(0, 300) }, 502, cors);
     }
@@ -581,7 +581,7 @@ async function tailor(body, env, cors) {
   // Momentarily overloaded → one automatic retry instead of a visible failure.
   if (!resp.ok && (resp.status === 529 || resp.status >= 500)) {
     await new Promise(r => setTimeout(r, 1500));
-    resp = await callClaude(model, 5000, wantStream);
+    resp = await callClaude(model, 9000, wantStream);
   }
 
   if (!resp.ok) {

@@ -188,8 +188,8 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 
     <div class="tabs" id="tabs">
       <button class="tab on" data-pane="paneResume">📋 Resume</button>
-      <button class="tab" data-pane="paneChanges">✨ What changed</button>
       <button class="tab" data-pane="paneKit">⚡ Apply kit</button>
+      <button class="tab" data-pane="paneChanges">✨ What changed</button>
       <button class="tab" data-pane="paneAts">🤖 ATS check</button>
       <button class="tab" data-pane="paneInterview">🎤 Interview</button>
       <button class="tab" data-pane="paneNote">💌 Messages</button>
@@ -331,9 +331,20 @@ function loadScript(src){
   });
 }
 
-// ---------- health check: show code box only if needed ----------
+// ---------- health check: show code box only if needed AND not saved yet ----------
 fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
-  if (h.needsCode) $('codeCard').style.display='block';
+  if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
+}).catch(()=>{});
+
+// ---------- auto-update: her phone (especially the home-screen app) caches this
+// page hard; when a new version ships, reload once automatically ----------
+const APP_VERSION = 'v10';
+fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
+  if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
+    store.write('rt_reloaded', v.v);
+    toast('Updating to the newest version…');
+    setTimeout(()=> location.replace(location.pathname + '?u=' + encodeURIComponent(v.v)), 900);
+  }
 }).catch(()=>{});
 
 // ---------- tailor flow ----------
@@ -409,12 +420,19 @@ async function doTailor(){
     if (!r2.ok || ctype.includes('application/json')) {
       const d2 = await r2.json();
       stopLoading(); tailoring = false;
-      if (!r2.ok || d2.error) return showErr(d2.message || 'Something went wrong — try again.');
+      if (!r2.ok || d2.error) {
+        if (d2.error === 'bad_code') { $('codeCard').style.display = 'block'; $('accessCode').focus(); }
+        return showErr(d2.message || 'Something went wrong — try again.');
+      }
       result = d2.result;
     } else {
       result = await consumeStream(r2);      // types the resume live as it writes
       stopLoading(); tailoring = false;
-      if (!result) return showErr('The AI answered in a weird format — tap Tailor again.');
+      if (!result) {
+        $('results').style.display = 'none';
+        return showErr('That one didn’t come through — tap Tailor again (it usually works on the second try).');
+      }
+      if (result._salvage) toast('Resume’s ready — extras didn’t load this time');
     }
     if (jobUrl) result.job_url = jobUrl;
     $('jobInput').value = '';   // ready for the next job
@@ -470,37 +488,66 @@ async function consumeStream(resp){
   const reader = resp.body.getReader();
   const dec = new TextDecoder();
   let buf = '', full = '', started = false, lastPaint = 0;
-  while (true) {
-    const {done, value} = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, {stream: true});
-    const lines = buf.split('\n');
-    buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data:')) continue;
-      let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
-      if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
-        full += ev.delta.text;
-        const rm = /===RESUME===\s*([\s\S]*?)(?:\s*===DATA===[\s\S]*)?$/.exec(full);
-        if (rm && rm[1]) {
-          if (!started) { started = true; clearInterval(loadTimer); $('loadingMsg').textContent = 'Watch it write ↓  (details land at the end)'; startStreamView(); }
-          const now = Date.now();
-          if (now - lastPaint > 120) { $('outResume').textContent = rm[1]; lastPaint = now; }
+  try {
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
+          full += ev.delta.text;
+          const rm = /===RESUME===\s*([\s\S]*?)(?:\s*===DATA===[\s\S]*)?$/.exec(full);
+          if (rm && rm[1]) {
+            if (!started) { started = true; clearInterval(loadTimer); $('loadingMsg').textContent = 'Watch it write ↓  (details land at the end)'; startStreamView(); }
+            const now = Date.now();
+            if (now - lastPaint > 120) { $('outResume').textContent = rm[1]; lastPaint = now; }
+          }
         }
       }
     }
-  }
+  } catch { /* dropped mid-stream — salvage whatever was written below */ }
+
+  // Full success: resume + data block.
   const m = /===RESUME===\s*([\s\S]*?)\s*===DATA===\s*([\s\S]*)/.exec(full);
-  if (!m) return null;
-  let tail = m[2].trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  let parsed = null;
-  try { parsed = JSON.parse(tail); } catch {
-    const s = tail.indexOf('{'), e = tail.lastIndexOf('}');
-    if (s >= 0 && e > s) { try { parsed = JSON.parse(tail.slice(s, e + 1)); } catch {} }
+  if (m) {
+    let tail = m[2].trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    let parsed = null;
+    try { parsed = JSON.parse(tail); } catch {
+      const s = tail.indexOf('{'), e = tail.lastIndexOf('}');
+      if (s >= 0 && e > s) { try { parsed = JSON.parse(tail.slice(s, e + 1)); } catch {} }
+    }
+    if (parsed) { parsed.tailored_resume = m[1].trim(); return parsed; }
+    if (m[1].trim().length > 200) return { _salvage: true, tailored_resume: m[1].trim() };
   }
-  parsed = parsed || {};
-  parsed.tailored_resume = m[1].trim();
-  return parsed;
+  // Resume streamed but the data block never finished — keep the resume.
+  const rOnly = /===RESUME===\s*([\s\S]*)/.exec(full);
+  const resumeText = (rOnly ? rOnly[1] : full).replace(/===DATA===[\s\S]*$/, '').trim();
+  if (resumeText.length > 200) return { _salvage: true, tailored_resume: resumeText };
+  return null;
+}
+
+// mandatory Apply kit fallback: contact pulled from the saved resume text,
+// answers assembled from her real materials (cover note, situation) only.
+function buildFallbackKit(r){
+  const res = store.read('rt_resume') || '';
+  const prof = $('profileText').value || '';
+  const email = (res.match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [''])[0];
+  const phone = (res.match(/(?:\+|00)?[\d(][\d\s().-]{7,}\d/) || [''])[0].trim();
+  const name = r.candidate_name || (res.split('\n').map(s=>s.trim()).find(s=>s && !s.includes('@') && !/\d{3}/.test(s)) || '');
+  const linkedin = (res.match(/(?:linkedin\.com\/in\/|linkedin\.com\/)[^\s|,]+/i) || [''])[0];
+  const location = (prof.match(/Based in ([^.(]+)/i) || [,''])[1].trim();
+  const salaryGoal = /€\s?2,?8\d\d/.test(prof) ? 'I’m targeting around €2,900–3,300 gross monthly, and flexible for the right role.' : 'I’m flexible — keen to hear the range for this role.';
+  const answers = [
+    r.cover_note ? { label: 'Why do you want to work here?', text: r.cover_note } : null,
+    { label: 'Salary expectation', text: salaryGoal },
+    { label: 'When can you start?', text: 'Right away — I’m fully available and can start immediately.' },
+    { label: 'Location & remote setup', text: (location ? 'Based in ' + location + ' (CET timezone). ' : '') + 'Fully set up for remote work: quiet space, reliable internet, headset.' },
+  ].filter(Boolean);
+  return { contact: { name, email, phone, location, linkedin }, answers };
 }
 
 // ---------- render results ----------
@@ -525,17 +572,20 @@ function render(r, fromHistory){
   $('results').style.display = 'block';
   $('resultSub').textContent = lastJob ? lastJob : '';
 
+  const salvage = !!r._salvage;
   const before = clamp(r.match_before), after = clamp(r.match_after);
-  $('scoreBefore').textContent = before + '%';
-  $('scoreAfter').textContent = after + '%';
-  $('scoreNum').textContent = after + '%';
-  $('scoreWhy').textContent = r.match_explanation || '';
+  $('scoreBefore').textContent = salvage ? '–' : before + '%';
+  $('scoreAfter').textContent = salvage ? '–' : after + '%';
+  $('scoreNum').textContent = salvage ? '✓' : after + '%';
+  $('scoreWhy').textContent = salvage
+    ? 'The resume is ready to use — the score and extras didn’t load for this one. Tailor again if you want the full report.'
+    : (r.match_explanation || '');
   const C = 301.6;
   requestAnimationFrame(()=> {
     const arc = $('ringArc');
     arc.style.transition = 'stroke-dashoffset 1.2s ease';
-    arc.style.strokeDashoffset = String(C * (1 - after/100));
-    arc.style.stroke = after >= 75 ? 'var(--good)' : after >= 55 ? 'var(--warn)' : 'var(--bad)';
+    arc.style.strokeDashoffset = String(C * (1 - (salvage ? 100 : after)/100));
+    arc.style.stroke = salvage ? 'var(--line)' : after >= 75 ? 'var(--good)' : after >= 55 ? 'var(--warn)' : 'var(--bad)';
   });
 
   $('outResume').textContent = lastResume;
@@ -562,7 +612,9 @@ function render(r, fromHistory){
   $('outLetter').textContent = lastLetter || '(This one didn’t come with a cover letter — tap Tailor again if you need one.)';
   $('outFollowUp').textContent = lastFollowUp || '';
 
-  const kit = r.apply_kit || {};
+  // The kit is mandatory: when a result arrives without one (old entries,
+  // salvaged streams), build it from her real saved data — never invented.
+  const kit = (r.apply_kit && (r.apply_kit.answers || []).length) ? r.apply_kit : buildFallbackKit(r);
   const kc = kit.contact || {};
   const contactRows = [['Name', kc.name], ['Email', kc.email], ['Phone', kc.phone], ['Location', kc.location], ['LinkedIn', kc.linkedin]]
     .filter(x => x[1]);
@@ -625,7 +677,15 @@ $('outKit').addEventListener('click', e => {
   const row = ($('outKit')._data || [])[Number(b.dataset.kit)];
   if (row) copy(row[1], row[0]);
 });
-$('copyResumeBtn').onclick = ()=> copy(lastResume, 'Resume');
+function activateTab(paneId){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane===paneId));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===paneId));
+}
+// resume grabbed → the form answers are automatically the next step
+function showKitNext(){
+  setTimeout(()=>{ activateTab('paneKit'); toast('Next: the form answers — Copy each ⚡'); }, 900);
+}
+$('copyResumeBtn').onclick = ()=> { copy(lastResume, 'Resume'); showKitNext(); };
 $('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
 $('copyLetterBtn').onclick = ()=> copy(lastLetter, 'Cover letter');
 $('copyFollowUpBtn').onclick = ()=> copy(lastFollowUp, 'Follow-up');
@@ -677,6 +737,7 @@ $('dlWordBtn').onclick = async ()=>{
     await download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
   }
   $('dlWordBtn').textContent = old;
+  showKitNext();
 };
 // ---------- jobs feed: found for her, one tap tailors ----------
 function timeAgo(d){
