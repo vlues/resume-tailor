@@ -200,9 +200,8 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 
     <div class="pane on" id="paneResume">
       <div class="row" style="margin:0 0 10px">
-        <button class="btn small good" id="copyResumeBtn">📋 Copy resume</button>
-        <button class="btn small" id="dlWordBtn">⬇️ Word file</button>
-        <button class="btn small" id="dlTxtBtn">⬇️ .txt</button>
+        <button class="btn small good" id="dlWordBtn">⬇️ Word file</button>
+        <button class="btn small" id="copyResumeBtn">📋 Copy</button>
       </div>
       <pre class="resume" id="outResume"></pre>
       <p class="muted">Tip: paste into Google Docs / Word, quick look for anything to tweak, then upload as .docx or PDF.</p>
@@ -516,12 +515,9 @@ function render(r, fromHistory){
   lastFollowUp = r.follow_up || '';
   lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
   if (!fromHistory) saveHistory(r);
-  // preload the Word library so the download tap is instant (keeps iOS's
-  // share sheet inside the tap-gesture window)
-  if (!window._docxPreload) {
-    window._docxPreload = 1;
-    setTimeout(()=> loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js').catch(()=>{}), 1500);
-  }
+  // pre-build the Word file in the background so the download tap is instant
+  // (also keeps iOS's share sheet inside the tap-gesture window)
+  setTimeout(()=> buildDocxBlob(lastResume).catch(()=>{}), 1200);
   $('resultTitle').textContent = '🎯 Tailored for this job';
   const ojb = $('openJobBtn');
   if (r.job_url) { ojb.href = r.job_url; ojb.style.display = 'inline-block'; }
@@ -639,37 +635,41 @@ function fileName(ext){
   const parts = [clean(lastName), clean(lastTitle).slice(0,40) || 'Resume', clean(lastCompany).slice(0,30)].filter(Boolean);
   return (parts.join('-') || 'Tailored-Resume') + ext;
 }
-$('dlTxtBtn').onclick = ()=> download(new Blob([lastResume],{type:'text/plain'}), fileName('.txt'));
-// Real .docx (parses cleanly in every ATS); falls back to Word-HTML if the library can't load.
+// Real .docx (parses cleanly in every ATS), pre-built in the background after
+// each tailor so the tap is instant; Word-HTML fallback if the library fails.
+const docxCache = { text: '', blob: null };
+async function buildDocxBlob(text){
+  if (docxCache.text === text && docxCache.blob) return docxCache.blob;
+  if (!window.docx) await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
+  const D = window.docx;
+  const paras = [];
+  text.replace(/\r/g,'').split('\n').forEach((raw, idx) => {
+    const t = raw.trim();
+    if (!t) { paras.push(new D.Paragraph({ children: [], spacing: { after: 60 } })); return; }
+    const isName = idx === 0;
+    const isHeader = !isName && t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t) && !/[a-z@]/.test(t);
+    const isBullet = /^[-•]\s+/.test(t);
+    paras.push(new D.Paragraph({
+      children: [new D.TextRun({
+        text: isBullet ? t.replace(/^[-•]\s+/, '') : t,
+        bold: isName || isHeader,
+        size: isName ? 32 : isHeader ? 24 : 22,   // half-points: 16/12/11pt
+        font: 'Calibri',
+      })],
+      bullet: isBullet ? { level: 0 } : undefined,
+      spacing: { after: isHeader ? 80 : 40, before: isHeader ? 160 : 0 },
+    }));
+  });
+  const doc = new D.Document({ sections: [{ properties: {}, children: paras }] });
+  const blob = await D.Packer.toBlob(doc);
+  docxCache.text = text; docxCache.blob = blob;
+  return blob;
+}
 $('dlWordBtn').onclick = async ()=>{
   const old = $('dlWordBtn').textContent;
   $('dlWordBtn').textContent = '⬇️ Making it…';
   try {
-    if (!window.docx) await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
-    const D = window.docx;
-    const lines = lastResume.replace(/\r/g,'').split('\n');
-    const paras = [];
-    lines.forEach((raw, idx) => {
-      const line = raw.trimEnd();
-      const t = line.trim();
-      if (!t) { paras.push(new D.Paragraph({ children: [], spacing: { after: 60 } })); return; }
-      const isName = idx === 0;
-      const isHeader = !isName && t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t) && !/[a-z@]/.test(t);
-      const isBullet = /^[-•]\s+/.test(t);
-      paras.push(new D.Paragraph({
-        children: [new D.TextRun({
-          text: isBullet ? t.replace(/^[-•]\s+/, '') : t,
-          bold: isName || isHeader,
-          size: isName ? 32 : isHeader ? 24 : 22,   // half-points: 16/12/11pt
-          font: 'Calibri',
-        })],
-        bullet: isBullet ? { level: 0 } : undefined,
-        spacing: { after: isHeader ? 80 : 40, before: isHeader ? 160 : 0 },
-      }));
-    });
-    const doc = new D.Document({ sections: [{ properties: {}, children: paras }] });
-    const blob = await D.Packer.toBlob(doc);
-    await download(blob, fileName('.docx'));
+    await download(await buildDocxBlob(lastResume), fileName('.docx'));
   } catch {
     const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
       '<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
