@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#7c5cff">
+<link rel="preconnect" href="https://resume-tailor-api.streamedmusics.workers.dev">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Tailor">
@@ -120,12 +122,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
         <button class="btn small good" id="saveResumeBtn">✓ Done</button>
       </div>
       <p class="muted" id="fileStatus"></p>
-      <details class="adv" id="profileDetails">
-        <summary>🌍 Your situation (already filled in — tap to check)</summary>
-        <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
-        <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
-      </details>
     </div>
+    <details class="adv" id="profileDetails">
+      <summary>🌍 Your situation (already filled in — tap to check)</summary>
+      <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
+      <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
+    </details>
   </section>
 
   <!-- STEP 2: pick a job -->
@@ -346,7 +348,7 @@ function looksLikeUrl(s){
 }
 let tailoring = false;
 async function doTailor(){
-  if (tailoring) return;
+  if (tailoring) return toast('Hang on — still working on the last one…');
   hideErr();
   const resume = ($('resumeText').value || store.read('rt_resume')).trim();
   if (resume.length < 100) { $('resumeText').focus(); return showErr('Add your resume first (step 1) — paste it once and it stays saved.'); }
@@ -387,6 +389,7 @@ async function doTailor(){
     stopLoading(); tailoring = false;
     if (!r2.ok || d2.error) return showErr(d2.message || 'Something went wrong — try again.');
     $('jobInput').value = '';   // ready for the next job
+    $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
     render(d2.result);
   } catch(err){
     stopLoading(); tailoring = false;
@@ -572,7 +575,9 @@ $('dlWordBtn').onclick = async ()=>{
 };
 // ---------- jobs feed: found for her, one tap tailors ----------
 function timeAgo(d){
-  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  const t = new Date(d).getTime();
+  if (!isFinite(t)) return 'new';
+  const days = Math.floor((Date.now() - t) / 86400000);
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
 }
 let feedAll = [], feedExpanded = false;

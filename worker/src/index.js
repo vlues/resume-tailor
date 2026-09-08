@@ -71,7 +71,7 @@ function json(obj, status, cors) {
 const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote[- ]?first|kosovo|spain|utc|cet|balkan/i;
 const TITLE_OK = /customer|support|success|service|helpdesk|help desk|client|community|care|happiness/i;
 const US_ONLY = /U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only/i;
-const FEED_CACHE_KEY = 'https://resume-tailor.internal/jobs-feed-v3';
+const FEED_CACHE_KEY = 'https://resume-tailor.internal/jobs-feed-v4';
 const UA = { 'User-Agent': 'ResumeTailor/1.0' };
 const CF_CACHE = { cf: { cacheTtl: 900, cacheEverything: true } };
 
@@ -88,6 +88,8 @@ async function jobsFeed(cors) {
   const results = await Promise.allSettled([
     fetchRemotive(), fetchRemoteOK(), fetchWWR(),
     fetchJobicy('europe'), fetchJobicy('anywhere'),
+    fetchJobicy('europe', 'customer'), fetchJobicy('anywhere', 'customer'),
+    ...GH_BOARDS.map(fetchGreenhouseBoard),
   ]);
   const jobs = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
@@ -100,7 +102,7 @@ async function jobsFeed(cors) {
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(j);
-    if (out.length >= 40) break;
+    if (out.length >= 50) break;
   }
 
   const body = JSON.stringify({ ok: true, jobs: out });
@@ -181,10 +183,35 @@ async function fetchWWR() {
   return jobs;
 }
 
-// Jobicy: public API with region + industry filters (credit: jobicy.com)
-async function fetchJobicy(geo) {
+// Direct company boards (Greenhouse public API) — companies that hire remote
+// support at volume; the most legit listings there are.
+const GH_BOARDS = ['gitlab', 'remotecom', 'canonical', 'wikimedia'];
+const GH_LOC_OK = /emea|europe|world|anywhere|global/i;
+
+async function fetchGreenhouseBoard(board) {
   const jobs = [];
-  const r = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&industry=supporting`, { headers: UA, ...CF_CACHE });
+  const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs`, { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of d.jobs || []) {
+    if (!TITLE_OK.test(j.title || '')) continue;
+    const loc = (j.location && j.location.name) || '';
+    if (!GH_LOC_OK.test(loc + ' ' + j.title)) continue;
+    if (US_ONLY.test(j.title + ' ' + loc)) continue;
+    jobs.push({
+      title: j.title, company: board === 'remotecom' ? 'Remote.com' : board.charAt(0).toUpperCase() + board.slice(1),
+      url: j.absolute_url, location: loc || 'Remote', date: j.updated_at || j.first_published,
+      salary: '', source: 'Company board',
+    });
+  }
+  return jobs;
+}
+
+// Jobicy: public API with region + industry/tag filters (credit: jobicy.com)
+async function fetchJobicy(geo, tag) {
+  const jobs = [];
+  const filter = tag ? `tag=${tag}` : 'industry=supporting';
+  const r = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&${filter}`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
