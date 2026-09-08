@@ -37,6 +37,8 @@ header p{margin:6px 0 0;color:var(--muted);font-size:.95rem}
 .slim{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:4px 0;text-align:left;color:var(--ink);font-size:.95rem}
 .slim .tickball{flex:none;width:26px;height:26px;border-radius:50%;background:var(--good);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
 .slim span.lnk{color:var(--brand);font-weight:600;margin-left:auto;flex:none}
+.rowmain{display:block;width:100%;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+a.btn{display:inline-block;text-decoration:none}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-top:16px}
 .card h2{margin:0 0 4px;font-size:1.05rem;display:flex;align-items:center;gap:8px}
 .card .hint{color:var(--muted);font-size:.88rem;margin:0 0 12px}
@@ -105,6 +107,13 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 
 <div class="wrap">
 
+  <!-- follow-ups due today -->
+  <section class="card" id="dueCard" style="display:none;border-color:rgba(224,138,0,.45)">
+    <h2>⏰ Follow up today</h2>
+    <p class="hint">The email is already written — one tap, add the address (or paste it in the application portal), send.</p>
+    <div id="dueList"></div>
+  </section>
+
   <!-- STEP 1: resume -->
   <section class="card" id="resumeCard">
     <div id="resumeCollapsed" style="display:none">
@@ -160,6 +169,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <button class="btn small" id="appliedBtn">✅ I applied — remind me to follow up</button>
       <a class="btn small" id="openJobBtn" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none">🔗 Open job page</a>
     </div>
+    <div id="resultFu" style="margin:-4px 0 12px"></div>
     <div class="score-wrap">
       <div class="ring">
         <svg width="110" height="110" viewBox="0 0 110 110">
@@ -179,6 +189,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     <div class="tabs" id="tabs">
       <button class="tab on" data-pane="paneResume">📋 Resume</button>
       <button class="tab" data-pane="paneChanges">✨ What changed</button>
+      <button class="tab" data-pane="paneKit">⚡ Apply kit</button>
       <button class="tab" data-pane="paneAts">🤖 ATS check</button>
       <button class="tab" data-pane="paneInterview">🎤 Interview</button>
       <button class="tab" data-pane="paneNote">💌 Messages</button>
@@ -206,6 +217,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 
     <div class="pane" id="paneAts">
       <ul class="checks" id="outAts"></ul>
+    </div>
+
+    <div class="pane" id="paneKit">
+      <p class="hint">The form, pre-answered — in the order they ask. Tap Copy, paste, next field.</p>
+      <ul class="checks" id="outKit"></ul>
+      <p class="muted">Resume is under 📋, cover letter under 💌 — copy those from their tabs when the form asks.</p>
     </div>
 
     <div class="pane" id="paneInterview">
@@ -543,6 +560,19 @@ function render(r, fromHistory){
   $('outLetter').textContent = lastLetter || '(This one didn’t come with a cover letter — tap Tailor again if you need one.)';
   $('outFollowUp').textContent = lastFollowUp || '';
 
+  const kit = r.apply_kit || {};
+  const kc = kit.contact || {};
+  const contactRows = [['Name', kc.name], ['Email', kc.email], ['Phone', kc.phone], ['Location', kc.location], ['LinkedIn', kc.linkedin]]
+    .filter(x => x[1]);
+  const answerRows = (kit.answers || []).filter(a => a && a.text).map(a => [a.label, a.text]);
+  const kitRows = [...contactRows, ...answerRows];
+  $('outKit').innerHTML = kitRows.length
+    ? kitRows.map((x, i) =>
+        '<li><span style="flex:1;min-width:0"><b>'+esc(x[0])+'</b><br><span class="muted" style="word-wrap:break-word">'+esc(x[1])+'</span></span>'+
+        '<button class="btn small good" data-kit="'+i+'" style="flex:none">Copy</button></li>').join('')
+    : '<li><span class="muted">Tailor a job to fill this in (older entries don’t have a kit yet).</span></li>';
+  $('outKit')._data = kitRows;
+
   $('outQuestions').innerHTML = (r.screening_questions||[]).map(x =>
     '<div class="chg"><b>❓ '+esc(x.q)+'</b><span>'+esc(x.tip)+'</span></div>').join('')
     || '<p class="muted">No predicted questions for this one.</p>';
@@ -588,6 +618,11 @@ async function copy(text, label){
     ta.select(); document.execCommand('copy'); ta.remove(); toast(label+' copied ✓');
   }
 }
+$('outKit').addEventListener('click', e => {
+  const b = e.target.closest('button[data-kit]'); if (!b) return;
+  const row = ($('outKit')._data || [])[Number(b.dataset.kit)];
+  if (row) copy(row[1], row[0]);
+});
 $('copyResumeBtn').onclick = ()=> copy(lastResume, 'Resume');
 $('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
 $('copyLetterBtn').onclick = ()=> copy(lastLetter, 'Cover letter');
@@ -712,7 +747,7 @@ function entryById(id){ return readHistory().find(e => e.when === id); }
 function refreshAppliedBtn(){
   const e = currentHistId && entryById(currentHistId);
   const b = $('appliedBtn');
-  if (!e) { b.style.display = 'none'; return; }
+  if (!e) { b.style.display = 'none'; $('resultFu').innerHTML = ''; return; }
   b.style.display = 'inline-block';
   if (e.appliedAt) {
     b.textContent = '✓ Applied ' + new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
@@ -721,41 +756,118 @@ function refreshAppliedBtn(){
     b.textContent = '✅ I applied — remind me to follow up';
     b.classList.remove('good');
   }
+  const idx = readHistory().findIndex(x => x.when === currentHistId);
+  $('resultFu').innerHTML = idx >= 0 ? fuButtons(e, idx) : '';
 }
+$('resultFu').addEventListener('click', ev => {
+  const fu = ev.target.closest('a[data-fu]');
+  if (fu) setTimeout(()=>markFollowedUp(Number(fu.dataset.fu)), 600);
+});
 $('appliedBtn').onclick = () => {
   const h = readHistory();
   const e = h.find(x => x.when === currentHistId); if (!e) return;
   e.appliedAt = e.appliedAt ? null : Date.now();
-  writeHistory(h); renderHistory(); refreshAppliedBtn();
-  if (e.appliedAt) toast('Good luck! 🍀 I’ll nudge you in 5 days');
+  if (!e.appliedAt) e.followedUpAt = null;
+  writeHistory(h); renderHistory(); renderDue(); refreshAppliedBtn();
+  if (e.appliedAt) {
+    toast('Good luck! 🍀 Reminder set for 5 days');
+    // contextual one-time ask so due-day nudges can also be system notifications
+    try {
+      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    } catch {}
+  }
 };
+function isDue(e){ return e.appliedAt && !e.followedUpAt && Date.now() - e.appliedAt >= 5*86400000; }
 function historyStatus(e){
+  if (e.followedUpAt) return '✉️ Followed up ' + new Date(e.followedUpAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   if (!e.appliedAt) return 'Not applied yet';
-  const days = Math.floor((Date.now() - e.appliedAt) / 86400000);
-  if (days >= 5) return '⏰ Time to follow up! Tap → 💌 Messages';
+  if (isDue(e)) return '⏰ Follow-up due — button below';
   return '✓ Applied · follow up ' + new Date(e.appliedAt + 5*86400000).toLocaleDateString(undefined,{weekday:'short'});
 }
+
+// ---- pre-written follow-up email (human voice; uses the job-specific one when we have it)
+function followUpEmail(e){
+  const r = e.result || {};
+  const t = r.job_title || 'the role', c = r.company || '', n = r.candidate_name || '';
+  const when = new Date(e.appliedAt || e.when).toLocaleDateString(undefined,{month:'long',day:'numeric'});
+  const body = (r.follow_up && r.follow_up.length > 30) ? r.follow_up
+    : 'Hi' + (c ? ' ' + c + ' team' : '') + ',\n\n'
+      + 'I applied for the ' + t + ' position on ' + when + ' and wanted to check in — I’m still really interested. '
+      + 'If there’s any update on timing, I’d love to hear it.\n\n'
+      + 'Happy to share anything else you need.\n\nThanks,\n' + n;
+  return { subject: 'Following up — ' + t + (c ? ' at ' + c : ''), body };
+}
+function mailtoFor(e){
+  const {subject, body} = followUpEmail(e);
+  return 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
+function gcalFor(e){
+  const due = new Date((e.appliedAt || Date.now()) + 5*86400000); due.setHours(9,0,0,0);
+  const end = new Date(due.getTime() + 30*60000);
+  const fmt = d => d.toISOString().replace(/[-:]|\.\d{3}/g,'');
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent('✉️ Follow up: ' + (e.label || 'job application'))
+    + '&dates=' + fmt(due) + '/' + fmt(end)
+    + '&details=' + encodeURIComponent(followUpEmail(e).body + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
+}
+function fuButtons(e, i){
+  if (!e.appliedAt || e.followedUpAt) return '';
+  return '<div class="row" style="margin-top:8px">'+
+    '<a class="btn small good" data-fu="'+i+'" href="'+esc(mailtoFor(e))+'">✉️ Follow-up email</a>'+
+    '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor(e))+'">🔔 Calendar reminder</a>'+
+  '</div>';
+}
+function markFollowedUp(i){
+  const h = readHistory(); if (!h[i]) return;
+  h[i].followedUpAt = Date.now();
+  writeHistory(h); renderHistory(); renderDue(); refreshAppliedBtn();
+  toast('Marked as followed up ✓');
+}
+
 function renderHistory(){
   const h = readHistory();
   $('historyCard').style.display = h.length ? 'block' : 'none';
   $('historyList').innerHTML = h.map((e,i)=>{
     const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'numeric'});
     const pct = e.result && e.result.match_after != null ? clamp(e.result.match_after)+'% · ' : '';
-    return '<button class="job-row" data-i="'+i+'">'+
-      '<b>'+esc(e.label)+'</b>'+
-      '<span class="meta">'+when+' · '+pct+esc(historyStatus(e))+'</span></button>';
+    return '<div class="job-row">'+
+      '<button class="rowmain" data-i="'+i+'">'+
+        '<b>'+esc(e.label)+'</b>'+
+        '<span class="meta">'+when+' · '+pct+esc(historyStatus(e))+'</span></button>'+
+      fuButtons(e, i)+
+    '</div>';
   }).join('');
 }
-$('historyList').addEventListener('click', e=>{
-  const b = e.target.closest('button[data-i]'); if (!b) return;
+function renderDue(){
+  const h = readHistory();
+  const due = h.map((e,i)=>({e,i})).filter(x=>isDue(x.e));
+  $('dueCard').style.display = due.length ? 'block' : 'none';
+  $('dueList').innerHTML = due.slice(0,3).map(({e,i}) =>
+    '<div class="job-row"><button class="rowmain" data-i="'+i+'"><b>'+esc(e.label)+'</b>'+
+    '<span class="meta">Applied '+new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})+'</span></button>'+
+    fuButtons(e, i)+'</div>').join('');
+}
+function historyClick(ev){
+  const fu = ev.target.closest('a[data-fu]');
+  if (fu) { setTimeout(()=>markFollowedUp(Number(fu.dataset.fu)), 600); return; }  // let mailto open first
+  const b = ev.target.closest('[data-i]'); if (!b) return;
   const entry = readHistory()[Number(b.dataset.i)];
   if (entry) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
-});
+}
+$('historyList').addEventListener('click', historyClick);
+$('dueList').addEventListener('click', historyClick);
 renderHistory();
-// gentle nudge when a follow-up is due
+renderDue();
+// nudges when a follow-up is due: toast + system notification when allowed
 (() => {
-  const due = readHistory().find(e => e.appliedAt && Date.now() - e.appliedAt >= 5*86400000);
-  if (due) setTimeout(()=> toast('⏰ Follow up on: ' + due.label.slice(0,40)), 1500);
+  const due = readHistory().filter(isDue);
+  if (!due.length) return;
+  setTimeout(()=> toast('⏰ Follow up on: ' + due[0].label.slice(0,40)), 1200);
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('✉️ Follow-up time', { body: due[0].label + (due.length>1 ? ' (+'+(due.length-1)+' more)' : '') });
+    }
+  } catch {}
 })();
 
 function download(blob, name){

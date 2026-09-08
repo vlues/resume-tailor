@@ -500,10 +500,21 @@ OUTPUT FORMAT — exactly this, in this order, nothing before or after:
   "scam_risk": {"level": "low | medium | high", "reasons": ["only if medium/high: specific red flags seen in the posting — e.g. pay far above market, vague company, requests to buy equipment, interviews only via chat app, checks to deposit; empty array when low"]},
   "location_fit": {"level": "good | caution | blocked", "note": "1-2 plain sentences: given the CANDIDATE SITUATION (if provided), can she realistically get and keep this job? Check the posting for hiring-country/state restrictions ('US only', 'must reside in…', listed countries, timezone windows) and whether it fits her location plans. 'blocked' = the posting clearly excludes her location; 'caution' = unclear or partial fit — say what to check before spending time; 'good' = no location obstacle"},
   "tips": ["3-4 short, concrete tips for THIS specific application — e.g. what the screening will likely ask, which of her strengths to lead with if there's a phone screen, anything time-sensitive in the posting; if the application likely has an optional cover-letter field, tell her to use the tailored letter and reword one sentence in her own voice (tailored letters drew 53% more callbacks in ResumeGo's 7,000-application field study); if the CANDIDATE SITUATION states an income goal and the posting's visible pay falls short of it, say so plainly"],
+  "apply_kit": {
+    "contact": {"name": "", "email": "", "phone": "", "location": "", "linkedin": ""},
+    "answers": [{"label": "", "text": ""}]
+  },
   "candidate_name": "the candidate's name exactly as it appears on the resume",
   "job_title": "the job's title",
   "company": "the company name or empty string"
 }
+
+apply_kit rules — the copy-paste kit for the application form itself:
+- contact: values copied EXACTLY from the resume (empty string when absent — NEVER invented).
+- answers: exactly these five labels, in this order: "Why do you want to work here?", "Why are you a good fit?", "Salary expectation", "When can you start?", "Location & remote setup".
+- Each answer ≤ 35 words, first person allowed, written per the SOUND HUMAN rules — at least one real specific (her metric, their product); no banned phrases.
+- Salary: if the CANDIDATE SITUATION states an income goal, phrase it as a flexible range in the posting's currency ("I'm targeting around €X–Y gross monthly, flexible for the right role"); otherwise "flexible, keen to hear the range".
+- Location & remote setup: her real location/timezone and remote readiness — never visa or relocation details.
 
 If a CANDIDATE SITUATION section is provided: use it ONLY for emphasis choices, location_fit, tips, and screening answers. NEVER write visa status, nationality, or relocation plans into the resume itself; DO truthfully surface things that help her case (e.g. CET-timezone availability, language skills, work-from-anywhere readiness) if supported by the resume or situation.
 ats_check must cover at least: standard section headers, no tables/columns/graphics, standard fonts implied by plain text, keywords mirrored from posting, contact info present and parseable, dates in consistent format, file-format advice (one line recommending .docx or PDF-with-text upload).
@@ -516,7 +527,7 @@ BE CONCISE — SHE IS ON A PHONE AND SPEED MATTERS. Hard caps:
 - ats_check: exactly 6 items, notes ≤ 12 words.
 - screening_questions: exactly 4, tips ≤ 30 words each.
 - cover_letter: 130-170 words. cover_note: 3 sentences. follow_up: ≤ 45 words.
-- tips: max 3, ≤ 20 words each. match_explanation: ≤ 35 words. location_fit note: ≤ 30 words.
+- tips: max 3, ≤ 20 words each. match_explanation: ≤ 35 words. location_fit note: ≤ 30 words. apply_kit answers: ≤ 35 words each.
 No filler, no repetition between sections.`;
 
 async function tailor(body, env, cors) {
