@@ -19,7 +19,11 @@ export default {
 
     try {
       if (url.pathname === '/api/health') {
-        return json({ ok: true, hasKey: !!env.ANTHROPIC_API_KEY, needsCode: !!env.ACCESS_CODE }, 200, cors);
+        const base = { ok: true, hasKey: !!env.ANTHROPIC_API_KEY, needsCode: !!env.ACCESS_CODE };
+        if (url.searchParams.get('deep') === '1' && env.ANTHROPIC_API_KEY) {
+          return json({ ...base, ai: await deepHealth(env) }, 200, cors);
+        }
+        return json(base, 200, cors);
       }
 
       if (url.pathname === '/api/jobs') {
@@ -64,6 +68,44 @@ function corsHeaders(request, env) {
 
 function json(obj, status, cors) {
   return new Response(JSON.stringify(obj), { status, headers: { ...JSON_HEADERS, ...cors } });
+}
+
+// Tiny live call so failures show their real cause (cached 60s to stay cheap).
+async function deepHealth(env) {
+  const cache = caches.default;
+  const KEY = 'https://resume-tailor.internal/deep-health';
+  const hit = await cache.match(KEY).catch(() => null);
+  if (hit) return await hit.json();
+  const probe = async (model) => {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+    });
+    return { status: r.status, body: (await r.text()).slice(0, 400) };
+  };
+  const primary = env.CLAUDE_MODEL || 'claude-sonnet-5';
+  const result = { primary: { model: primary, ...(await probe(primary)) } };
+  if (result.primary.status !== 200) {
+    result.fallback = { model: 'claude-sonnet-4-5', ...(await probe('claude-sonnet-4-5')) };
+  }
+  await cache.put(KEY, new Response(JSON.stringify(result), {
+    headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60' },
+  })).catch(() => {});
+  return result;
+}
+
+// Map Anthropic's error JSON to a message a non-technical user can act on.
+function friendlyClaudeError(status, errText) {
+  let type = '', msg = '';
+  try { const e = JSON.parse(errText); type = (e.error && e.error.type) || ''; msg = (e.error && e.error.message) || ''; } catch {}
+  if (/credit balance/i.test(msg)) return 'The AI credits ran out — Parker needs to top up the Anthropic account.';
+  if (type === 'authentication_error') return 'The AI key stopped working — Parker needs to re-run setup-api.sh.';
+  if (type === 'permission_error') return 'The AI key isn’t allowed to do this — Parker should check the Anthropic console.';
+  if (type === 'overloaded_error' || status === 529) return 'The AI is overloaded right now — wait 30 seconds and tap Tailor again.';
+  if (status === 429) return 'The AI is a little busy — wait a few seconds and tap Tailor again.';
+  if (type === 'not_found_error') return 'The AI model isn’t available on this key — tell Parker.';
+  return 'The AI hit a snag (' + (type || status) + '). Try again in a moment.';
 }
 
 // ------------------------------------------------------------------ jobs feed
@@ -575,7 +617,7 @@ async function tailor(body, env, cors) {
       model = 'claude-sonnet-4-5';
       resp = await callClaude(model, 9000, wantStream);
     } else {
-      return json({ error: 'claude_error', message: 'The AI hit a snag. Try again in a moment.', detail: errText.slice(0, 300) }, 502, cors);
+      return json({ error: 'claude_error', message: friendlyClaudeError(resp.status, errText), detail: errText.slice(0, 300) }, 502, cors);
     }
   }
   // Momentarily overloaded → one automatic retry instead of a visible failure.
@@ -587,10 +629,7 @@ async function tailor(body, env, cors) {
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
     const status = resp.status === 429 ? 429 : 502;
-    const message = resp.status === 429
-      ? 'The AI is a little busy — wait a few seconds and tap Tailor again.'
-      : 'The AI hit a snag. Try again in a moment.';
-    return json({ error: 'claude_error', message, detail: errText.slice(0, 300) }, status, cors);
+    return json({ error: 'claude_error', message: friendlyClaudeError(resp.status, errText), detail: errText.slice(0, 300) }, status, cors);
   }
 
   // Streaming: hand Anthropic's SSE straight through so the page can type
