@@ -318,12 +318,18 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 // ---------- tailor flow ----------
 const LOADING_LINES = [
   'Reading the job posting…','Matching it to your experience…','Rewriting your bullets…',
-  'Adding the keywords recruiters search for…','Running the ATS checks…','Almost there — polishing…'
+  'Adding the keywords recruiters search for…','Running the ATS checks…','Writing your cover letter…','Almost there — polishing…'
 ];
-let loadTimer = null;
+let loadTimer = null, loadStart = 0;
 function startLoading(){
-  let i=0; $('loadingMsg').textContent = LOADING_LINES[0];
-  loadTimer = setInterval(()=>{ i=Math.min(i+1,LOADING_LINES.length-1); $('loadingMsg').textContent=LOADING_LINES[i]; }, 5000);
+  loadStart = Date.now();
+  const tick = () => {
+    const s = Math.round((Date.now() - loadStart) / 1000);
+    const i = Math.min(Math.floor(s / 6), LOADING_LINES.length - 1);
+    $('loadingMsg').textContent = LOADING_LINES[i] + '  ' + s + 's' + (s > 8 ? ' · usually 20–45s' : '');
+  };
+  tick();
+  loadTimer = setInterval(tick, 1000);
   $('tailorBtn').disabled = true;
   $('tailorBtn').innerHTML = '<span class="spin"></span>Tailoring…';
 }
@@ -355,10 +361,12 @@ async function doTailor(){
 
   tailoring = true;
   startLoading();
+  const ctrl = new AbortController();
+  const killer = setTimeout(() => ctrl.abort(), 150000);
   try {
     if (!jobText) {
       const r = await fetch(API_BASE + '/api/fetch-job', {
-        method:'POST', headers:{'content-type':'application/json'},
+        method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
         body: JSON.stringify({ url: jobUrl, accessCode: code })
       });
       const d = await r.json();
@@ -372,7 +380,7 @@ async function doTailor(){
     }
 
     const r2 = await fetch(API_BASE + '/api/tailor', {
-      method:'POST', headers:{'content-type':'application/json'},
+      method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
       body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim() })
     });
     const d2 = await r2.json();
@@ -382,7 +390,11 @@ async function doTailor(){
     render(d2.result);
   } catch(err){
     stopLoading(); tailoring = false;
-    showErr('Network hiccup — check your signal and try again.');
+    showErr(err && err.name === 'AbortError'
+      ? 'That took way too long, so I stopped it — tap Tailor again (it usually works on the second try).'
+      : 'Network hiccup — check your signal and try again.');
+  } finally {
+    clearTimeout(killer);
   }
 }
 // One smart button: uses the box if filled, otherwise grabs the copied link.
@@ -520,11 +532,43 @@ function fileName(ext){
   return (parts.join('-') || 'Tailored-Resume') + ext;
 }
 $('dlTxtBtn').onclick = ()=> download(new Blob([lastResume],{type:'text/plain'}), fileName('.txt'));
-$('dlWordBtn').onclick = ()=>{
-  const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
-    '<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
-    esc(lastResume) + '</body></html>';
-  download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
+// Real .docx (parses cleanly in every ATS); falls back to Word-HTML if the library can't load.
+$('dlWordBtn').onclick = async ()=>{
+  const old = $('dlWordBtn').textContent;
+  $('dlWordBtn').textContent = '⬇️ Making it…';
+  try {
+    await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
+    const D = window.docx;
+    const lines = lastResume.replace(/\r/g,'').split('\n');
+    const paras = [];
+    lines.forEach((raw, idx) => {
+      const line = raw.trimEnd();
+      const t = line.trim();
+      if (!t) { paras.push(new D.Paragraph({ children: [], spacing: { after: 60 } })); return; }
+      const isName = idx === 0;
+      const isHeader = !isName && t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t) && !/[a-z@]/.test(t);
+      const isBullet = /^[-•]\s+/.test(t);
+      paras.push(new D.Paragraph({
+        children: [new D.TextRun({
+          text: isBullet ? t.replace(/^[-•]\s+/, '') : t,
+          bold: isName || isHeader,
+          size: isName ? 32 : isHeader ? 24 : 22,   // half-points: 16/12/11pt
+          font: 'Calibri',
+        })],
+        bullet: isBullet ? { level: 0 } : undefined,
+        spacing: { after: isHeader ? 80 : 40, before: isHeader ? 160 : 0 },
+      }));
+    });
+    const doc = new D.Document({ sections: [{ properties: {}, children: paras }] });
+    const blob = await D.Packer.toBlob(doc);
+    download(blob, fileName('.docx'));
+  } catch {
+    const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
+      '<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
+      esc(lastResume) + '</body></html>';
+    download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
+  }
+  $('dlWordBtn').textContent = old;
 };
 // ---------- jobs feed: found for her, one tap tailors ----------
 function timeAgo(d){

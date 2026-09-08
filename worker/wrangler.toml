@@ -4,7 +4,9 @@ compatibility_date = "2026-08-01"
 
 [vars]
 ALLOWED_ORIGINS = "https://vlues.github.io,http://localhost:8899,http://127.0.0.1:8899"
-CLAUDE_MODEL = "claude-sonnet-4-5"
+# Newest Sonnet; the Worker falls back to claude-sonnet-4-5 automatically if
+# this model isn't available on the account's key.
+CLAUDE_MODEL = "claude-sonnet-5"
 
 # Secrets are NOT set here — use ./setup-api.sh (or `wrangler secret put`):
 #   ANTHROPIC_API_KEY   — required

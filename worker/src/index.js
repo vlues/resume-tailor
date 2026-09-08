@@ -32,15 +32,14 @@ export default {
 
       const body = await request.json().catch(() => ({}));
 
-      // Access code gate (same pattern as the other sites)
-      if (env.ACCESS_CODE && body.accessCode !== env.ACCESS_CODE) {
-        return json({ error: 'bad_code', message: 'That access code isn’t right.' }, 401, cors);
-      }
-
       if (url.pathname === '/api/fetch-job') {
         return await fetchJob(body, cors);
       }
       if (url.pathname === '/api/tailor') {
+        // Access code gates only the expensive Claude call
+        if (env.ACCESS_CODE && String(body.accessCode || '').trim() !== env.ACCESS_CODE) {
+          return json({ error: 'bad_code', message: 'That access code isn’t right — check it in the 🔑 box.' }, 401, cors);
+        }
         return await tailor(body, env, cors);
       }
       return json({ error: 'Not found' }, 404, cors);
@@ -423,7 +422,17 @@ Respond ONLY with valid JSON (no markdown fences) in exactly this shape:
 
 If a CANDIDATE SITUATION section is provided: use it ONLY for emphasis choices, location_fit, tips, and screening answers. NEVER write visa status, nationality, or relocation plans into the resume itself; DO truthfully surface things that help her case (e.g. CET-timezone availability, language skills, work-from-anywhere readiness) if supported by the resume or situation.
 ats_check must cover at least: standard section headers, no tables/columns/graphics, standard fonts implied by plain text, keywords mirrored from posting, contact info present and parseable, dates in consistent format, file-format advice (one line recommending .docx or PDF-with-text upload).
-Scores: match_before = how well the ORIGINAL resume matches the posting's requirements; match_after = the tailored version. Be honest — after tailoring, 75-92 is typical; only exceed that when the fit is genuinely excellent. Never claim 100.`;
+Scores: match_before = how well the ORIGINAL resume matches the posting's requirements; match_after = the tailored version. Be honest — after tailoring, 75-92 is typical; only exceed that when the fit is genuinely excellent. Never claim 100.
+
+BE CONCISE — SHE IS ON A PHONE AND SPEED MATTERS. Hard caps:
+- tailored_resume: about the original's length, never longer than one page (~450 words).
+- changes: max 5, each "what" and "why" one short sentence.
+- keywords_added: max 10. missing_keywords: max 4, suggestions ≤ 20 words.
+- ats_check: exactly 6 items, notes ≤ 12 words.
+- screening_questions: exactly 4, tips ≤ 30 words each.
+- cover_letter: 130-170 words. cover_note: 3 sentences. follow_up: ≤ 45 words.
+- tips: max 3, ≤ 20 words each. match_explanation: ≤ 35 words. location_fit note: ≤ 30 words.
+No filler, no repetition between sections.`;
 
 async function tailor(body, env, cors) {
   if (!env.ANTHROPIC_API_KEY) {
@@ -439,9 +448,9 @@ async function tailor(body, env, cors) {
   }
 
   const profile = String(body.profile || '').trim().slice(0, 2000);
-  const userMsg = `JOB POSTING:\n${jobText.slice(0, 20000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 15000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, ATS-safe plain text, JSON only.`;
+  const userMsg = `JOB POSTING:\n${jobText.slice(0, 16000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 12000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, ATS-safe plain text, concise, JSON only.`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const callClaude = (model, maxTokens) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
@@ -449,12 +458,31 @@ async function tailor(body, env, cors) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: env.CLAUDE_MODEL || 'claude-sonnet-4-5',
-      max_tokens: 16000,
+      model,
+      max_tokens: maxTokens,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMsg }],
     }),
   });
+
+  let model = env.CLAUDE_MODEL || 'claude-sonnet-5';
+  let resp = await callClaude(model, 5000);
+
+  // Key doesn't have the newest model → fall back once.
+  if (!resp.ok && (resp.status === 404 || resp.status === 400)) {
+    const errText = await resp.text().catch(() => '');
+    if (/model/i.test(errText) && model !== 'claude-sonnet-4-5') {
+      model = 'claude-sonnet-4-5';
+      resp = await callClaude(model, 5000);
+    } else {
+      return json({ error: 'claude_error', message: 'The AI hit a snag. Try again in a moment.', detail: errText.slice(0, 300) }, 502, cors);
+    }
+  }
+  // Momentarily overloaded → one automatic retry instead of a visible failure.
+  if (!resp.ok && (resp.status === 529 || resp.status >= 500)) {
+    await new Promise(r => setTimeout(r, 1500));
+    resp = await callClaude(model, 5000);
+  }
 
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
@@ -465,13 +493,18 @@ async function tailor(body, env, cors) {
     return json({ error: 'claude_error', message, detail: errText.slice(0, 300) }, status, cors);
   }
 
-  const data = await resp.json();
+  let data = await resp.json();
+  // Ran out of room mid-answer (huge posting) → one retry with more headroom.
+  if (data.stop_reason === 'max_tokens') {
+    const r2 = await callClaude(model, 9000);
+    if (r2.ok) data = await r2.json();
+  }
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   const parsed = parseClaudeJson(text);
   if (!parsed || !parsed.tailored_resume) {
     return json({ error: 'bad_ai_json', message: 'The AI answered in a weird format. Tap Tailor again.', raw: text.slice(0, 500) }, 502, cors);
   }
-  return json({ ok: true, result: parsed }, 200, cors);
+  return json({ ok: true, result: parsed, model }, 200, cors);
 }
 
 function parseClaudeJson(text) {
