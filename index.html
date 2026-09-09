@@ -143,6 +143,8 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
           <input type="text" id="setFit" inputmode="numeric" placeholder="60"></label>
       </div>
       <p class="muted">€2,849 = Spain digital-nomad visa minimum, checked 9 Sep 2026. Change it if the rules change.</p>
+      <p class="hint" style="margin:14px 0 4px">🗣️ How you write (one time, optional)</p>
+      <textarea id="voiceText" style="min-height:80px" placeholder="Paste 3–5 sentences you really wrote — a normal email is perfect. Your letters will be written in this voice instead of AI-speak."></textarea>
     </details>
   </section>
 
@@ -196,6 +198,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       </div>
     </div>
     <div class="miss" id="dnvBanner" style="display:none"></div>
+    <div class="miss" id="slopBanner" style="display:none"></div>
     <div id="outAsk"></div>
 
     <div class="tabs" id="tabs">
@@ -220,6 +223,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     </div>
 
     <div class="pane" id="paneChanges">
+      <div id="outDiff"></div>
       <div id="outTips"></div>
       <div id="outChanges"></div>
       <div id="outKeywords" style="margin-top:14px"></div>
@@ -317,6 +321,11 @@ function currentSettings(){
     clearTimeout($(id)._t);
     $(id)._t = setTimeout(()=> store.write('rt_settings', JSON.stringify(currentSettings())), 600);
   });
+  $('voiceText').value = store.read('rt_voice');
+  $('voiceText').addEventListener('input', () => {
+    clearTimeout($('voiceText')._t);
+    $('voiceText')._t = setTimeout(()=> store.write('rt_voice', $('voiceText').value.trim()), 800);
+  });
 })();
 
 // ---------- file upload (.txt/.docx/.pdf) ----------
@@ -371,7 +380,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
   if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
     store.write('rt_reloaded', v.v);
@@ -444,9 +453,11 @@ async function doTailor(){
       jobText = d.jobText;
     }
 
+    const tailorBody = { resume, jobText, accessCode: code, profile: $('profileText').value.trim(),
+      settings: currentSettings(), voice: store.read('rt_voice'), stream: true };
     const r2 = await fetch(API_BASE + '/api/tailor', {
       method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
-      body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim(), settings: currentSettings(), stream: true })
+      body: JSON.stringify(tailorBody)
     });
     const ctype = r2.headers.get('content-type') || '';
     let result;
@@ -470,6 +481,13 @@ async function doTailor(){
     if (jobUrl) result.job_url = jobUrl;
     $('jobInput').value = '';   // ready for the next job
     $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
+    // anti-slop gate: mechanical scan + cheap grader; one regenerate with the
+    // complaints fed back, then a visible warning if it's still off
+    if (!result._salvage) {
+      $('loadingMsg').textContent = 'Checking it sounds like you…';
+      try { result = await antiSlop(result, tailorBody); } catch {}
+      $('loadingMsg').textContent = '';
+    }
     render(result);
   } catch(err){
     stopLoading(); tailoring = false;
@@ -587,6 +605,113 @@ function buildFallbackKit(r){
   return { contact: { name, email, phone, location, linkedin }, answers };
 }
 
+// ---------- anti-slop: check → regenerate once → visible warning ----------
+async function slopScore(result, tb){
+  const r = await fetch(API_BASE + '/api/slop', {
+    method:'POST', headers:{'content-type':'application/json'},
+    body: JSON.stringify({ result, resume: tb.resume, jobText: tb.jobText, profile: tb.profile, accessCode: tb.accessCode })
+  });
+  if (!r.ok) throw new Error('slop check unavailable');
+  return await r.json();
+}
+async function antiSlop(result, tb){
+  let s = await slopScore(result, tb);
+  const bad = x => (x.flags||[]).length > 0 || (x.score != null && x.score > 4);
+  if (!bad(s)) return result;
+  // one regenerate with the complaints fed back
+  $('loadingMsg').textContent = 'First draft sounded off — rewriting it properly…';
+  const complaints = (s.flags||[]).map(f=>f.where+': '+f.reason);
+  if (s.score != null && s.score > 4) complaints.push('overall it reads AI-generated ('+s.score+'/10) — vary sentence lengths, cut template phrasing, be concrete');
+  const r2 = await fetch(API_BASE + '/api/tailor', {
+    method:'POST', headers:{'content-type':'application/json'},
+    body: JSON.stringify({ ...tb, stream:false, complaints })
+  });
+  const d2 = await r2.json().catch(()=>null);
+  if (r2.ok && d2 && d2.result && d2.result.tailored_resume) {
+    let s2 = null;
+    try { s2 = await slopScore(d2.result, tb); } catch {}
+    if (!s2 || !bad(s2)) return d2.result;
+    d2.result._slop = s2;            // still off → return WITH a visible warning
+    return d2.result;
+  }
+  result._slop = s;                  // regenerate failed → keep first draft, warn
+  return result;
+}
+
+// ---------- raw word-level diff + one-tap vetoes ----------
+function lcsOps(a, b){               // generic LCS over two arrays → op list
+  const n=a.length, m=b.length, dp=[];
+  for (let i=n; i>=0; i--){ dp[i]=new Array(m+1).fill(0); }
+  for (let i=n-1; i>=0; i--) for (let j=m-1; j>=0; j--)
+    dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  const ops=[]; let i=0,j=0;
+  while (i<n && j<m){
+    if (a[i]===b[j]) { ops.push({t:'=',a:a[i]}); i++; j++; }
+    else if (dp[i+1][j] >= dp[i][j+1]) { ops.push({t:'-',a:a[i]}); i++; }
+    else { ops.push({t:'+',b:b[j]}); j++; }
+  }
+  while (i<n) ops.push({t:'-',a:a[i++]});
+  while (j<m) ops.push({t:'+',b:b[j++]});
+  return ops;
+}
+function wordDiffHtml(oldLine, newLine){
+  const ops = lcsOps(oldLine.split(/\s+/), newLine.split(/\s+/));
+  return ops.map(o => o.t==='=' ? esc(o.a)
+    : o.t==='-' ? '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>'
+    : '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>').join(' ');
+}
+// pair up removed/added lines into changes; returns [{t:'='|'-'|'+'|'~', a?, b?}]
+function resumeDiff(before, after){
+  const ops = lcsOps(before.split('\n'), after.split('\n'));
+  const out=[];
+  for (let k=0; k<ops.length; k++){
+    if (ops[k].t==='-' && ops[k+1] && ops[k+1].t==='+'){ out.push({t:'~', a:ops[k].a, b:ops[k+1].b}); k++; }
+    else out.push(ops[k]);
+  }
+  return out;
+}
+let diffOps = [], diffVetoes = new Set();
+function effectiveResume(){
+  return diffOps.map((o,i)=>{
+    const v = diffVetoes.has(i);
+    if (o.t==='=') return o.a;
+    if (o.t==='~') return v ? o.a : o.b;
+    if (o.t==='+') return v ? null : o.b;
+    return v ? o.a : null;           // '-': vetoing a removal restores the line
+  }).filter(x => x !== null).join('\n');
+}
+function persistVetoes(){
+  const h = readHistory(); const e = h.find(x=>x.when===currentHistId);
+  if (e) { e.vetoes = [...diffVetoes]; writeHistory(h); }
+}
+function renderDiff(){
+  if (!diffOps.some(o=>o.t!=='=')) { $('outDiff').innerHTML=''; return; }
+  $('outDiff').innerHTML =
+    '<p class="hint" style="margin:0 0 4px">🔎 Every edit, word by word — tap ↩︎ to put a line back how it was:</p>' +
+    diffOps.map((o,i)=>{
+      if (o.t==='=') return '';
+      const v = diffVetoes.has(i);
+      const btn = '<button class="btn small" data-veto="'+i+'" style="flex:none;padding:4px 9px">'+(v?'undo':'↩︎')+'</button>';
+      let html;
+      if (o.t==='~') html = v ? '<s class="muted">'+wordDiffHtml(o.a,o.b)+'</s><br><b>kept your original:</b> '+esc(o.a) : wordDiffHtml(o.a,o.b);
+      else if (o.t==='+') html = v ? '<s class="muted">'+esc(o.b)+'</s> <span class="muted">(removed)</span>' : '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>';
+      else html = v ? '<b>kept:</b> '+esc(o.a) : '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>';
+      return '<div style="display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0;font-size:.88rem"><span style="flex:1;min-width:0;word-wrap:break-word">'+html+'</span>'+btn+'</div>';
+    }).join('') +
+    '<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">';
+}
+$('outDiff').addEventListener('click', e => {
+  const b = e.target.closest('button[data-veto]'); if (!b) return;
+  const i = Number(b.dataset.veto);
+  diffVetoes.has(i) ? diffVetoes.delete(i) : diffVetoes.add(i);
+  persistVetoes();
+  lastResume = effectiveResume();
+  $('outResume').textContent = lastResume;
+  docxCache.text = '';               // rebuilt on next download
+  renderDiff();
+  toast(diffVetoes.has(i) ? 'Put back your original ✓' : 'Using the new version ✓');
+});
+
 // ---------- render results ----------
 let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '', lastLetter = '', lastFollowUp = '', lastTitle = '';
 function render(r, fromHistory){
@@ -599,6 +724,12 @@ function render(r, fromHistory){
   lastFollowUp = r.follow_up || '';
   lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
   if (!fromHistory) saveHistory(r);
+  // raw diff vs the resume she saved, with per-job vetoes remembered
+  const original = store.read('rt_resume');
+  diffOps = (original && lastResume && !r._salvage) ? resumeDiff(original, lastResume) : [];
+  const histEntry = currentHistId && entryById(currentHistId);
+  diffVetoes = new Set((histEntry && histEntry.vetoes) || []);
+  if (diffVetoes.size) lastResume = effectiveResume();
   // pre-build the Word file in the background so the download tap is instant
   // (also keeps iOS's share sheet inside the tap-gesture window)
   setTimeout(()=> buildDocxBlob(lastResume).catch(()=>{}), 1200);
@@ -662,6 +793,16 @@ function render(r, fromHistory){
     $('dnvBanner').innerHTML = '<b>' + ic + ' Visa income check: ' + esc(dnv.status) + '</b>' +
       (dnv.estimated && dnv.monthly_eur_estimate ? ' <span class="muted">(≈€' + esc(dnv.monthly_eur_estimate) + '/mo — an estimate, not from the posting)</span>' : '') +
       '<br>' + esc(dnv.note);
+  }
+  renderDiff();
+  // anti-slop warning — only when a regenerate still didn't fix it
+  const slop = r._slop;
+  $('slopBanner').style.display = slop ? 'block' : 'none';
+  if (slop) {
+    $('slopBanner').style.borderColor = 'rgba(224,138,0,.4)';
+    $('slopBanner').innerHTML = '<b>🤖 Heads up — parts of this still sound AI-written' +
+      (slop.score != null ? ' (' + esc(slop.score) + '/10)' : '') + '.</b> Reword the flagged bits in your own voice before sending:<br>' +
+      (slop.flags||[]).slice(0,6).map(f=>'• '+esc(f.where)+': '+esc(f.reason)).join('<br>');
   }
   // questions she should answer to make the result stronger
   $('outAsk').innerHTML = (r.questions_for_her||[]).length

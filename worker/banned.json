@@ -1,0 +1,39 @@
+{
+  "phrases": [
+    "passionate",
+    "dynamic",
+    "results-driven",
+    "results driven",
+    "proven track record",
+    "leverage",
+    "leveraging",
+    "synergy",
+    "spearheaded",
+    "seamless",
+    "seamlessly",
+    "delve",
+    "in today's fast-paced",
+    "in today’s fast-paced",
+    "I am writing to express",
+    "thrilled",
+    "excited to apply",
+    "aligns perfectly",
+    "unique blend",
+    "a plus for your team",
+    "go-getter",
+    "I hope this finds you well",
+    "fast-paced environment",
+    "team player",
+    "think outside the box"
+  ],
+  "conditional_phrases": [
+    "detail-oriented",
+    "detail oriented"
+  ],
+  "closings": [
+    "I look forward to the opportunity to contribute",
+    "I look forward to the opportunity",
+    "look forward to contributing"
+  ],
+  "_comment": "Edit freely. phrases = always banned; conditional_phrases = banned unless the phrase appears in the job posting; closings = banned letter endings. Sentence-shape rules (starting with 'As a', em-dash chains, three-adjective lists) live in worker/src/index.js slopScan()."
+}

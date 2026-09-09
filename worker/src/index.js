@@ -6,6 +6,8 @@
 //
 // Secrets (wrangler secret put): ANTHROPIC_API_KEY (required), ACCESS_CODE (optional)
 
+import BANNED from '../banned.json';
+
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
 
 export default {
@@ -38,6 +40,12 @@ export default {
 
       if (url.pathname === '/api/fetch-job') {
         return await fetchJob(body, cors);
+      }
+      if (url.pathname === '/api/slop') {
+        if (env.ACCESS_CODE && String(body.accessCode || '').trim() !== env.ACCESS_CODE) {
+          return json({ error: 'bad_code', message: 'That access code isn’t right — check it in the 🔑 box.' }, 401, cors);
+        }
+        return await slopCheck(body, env, cors);
       }
       if (url.pathname === '/api/tailor') {
         // Access code gates only the expensive Claude call
@@ -482,6 +490,97 @@ function titleFrom(html) {
   return m ? stripTags(m[1]).slice(0, 120) : '';
 }
 
+// ---------------------------------------------------------------- anti-slop
+
+// Mechanical scan — deterministic, costs nothing. Returns flag objects the
+// UI can highlight and a regenerate pass can feed back as complaints.
+function slopScan(fields, jobText, sourceText) {
+  const flags = [];
+  const postingLower = (jobText || '').toLowerCase();
+  // numbers that legitimately exist somewhere in her materials or the posting
+  const allowedNums = new Set((String(sourceText || '') + ' ' + String(jobText || ''))
+    .replace(/[,.](?=\d{3})/g, '').match(/\d+/g) || []);
+  const adjective = '(?:[\\w-]+(?:ed|ive|able|ful|ous|ic|al|ing|y))';
+  const threeAdj = new RegExp(`\\b${adjective}, ${adjective},? and ${adjective}\\b`, 'i');
+
+  for (const [where, text] of Object.entries(fields)) {
+    if (!text) continue;
+    const t = String(text);
+    const lower = t.toLowerCase();
+    for (const p of BANNED.phrases) {
+      if (lower.includes(p.toLowerCase())) flags.push({ where, reason: `banned phrase “${p}”` });
+    }
+    for (const p of BANNED.conditional_phrases) {
+      if (lower.includes(p.toLowerCase()) && !postingLower.includes(p.toLowerCase())) {
+        flags.push({ where, reason: `“${p}” (and the posting doesn’t use it)` });
+      }
+    }
+    for (const p of BANNED.closings) {
+      if (lower.includes(p.toLowerCase())) flags.push({ where, reason: `template closing “${p}”` });
+    }
+    // sentence starting "As a …" (letters and notes only — resumes have no sentences like this)
+    if (/(^|[.!?]\s+)As an? /m.test(t)) flags.push({ where, reason: 'sentence starting “As a…”' });
+    // em-dash chain: two or more em dashes inside one sentence
+    for (const sentence of t.split(/(?<=[.!?])\s+/)) {
+      if ((sentence.match(/—/g) || []).length >= 2) { flags.push({ where, reason: 'em-dash chain' }); break; }
+    }
+    if (threeAdj.test(t)) flags.push({ where, reason: 'three-adjective list' });
+    // unexplained numbers: anything > 31 that appears nowhere in her materials or the posting
+    for (const n of t.replace(/[,.](?=\d{3})/g, '').match(/\d+/g) || []) {
+      if (Number(n) > 31 && !allowedNums.has(n)) flags.push({ where, reason: `number ${n} isn’t in the resume, profile, or posting` });
+    }
+  }
+  return flags;
+}
+
+// Fields worth scanning/grading from a tailor result.
+function slopFields(r) {
+  return {
+    resume: r.tailored_resume || '',
+    cover_note: r.cover_note || '',
+    cover_letter: r.cover_letter || '',
+    follow_up: r.follow_up || '',
+    answers: ((r.apply_kit && r.apply_kit.answers) || []).map(a => a && a.text).filter(Boolean).join('\n'),
+    screening: (r.screening_questions || []).map(x => x && (x.answer || x.tip)).filter(Boolean).join('\n'),
+  };
+}
+
+// POST /api/slop — mechanical scan + a cheap Haiku pass grading 1-10 for
+// "sounds AI-generated". The grader failing is not fatal: mechanical flags
+// still come back and the response says the grader was unavailable.
+async function slopCheck(body, env, cors) {
+  const result = body.result || {};
+  const fields = slopFields(result);
+  const source = String(body.resume || '') + '\n' + String(body.profile || '');
+  const flags = slopScan(fields, String(body.jobText || ''), source);
+
+  let score = null, graderNote = '';
+  if (env.ANTHROPIC_API_KEY) {
+    try {
+      const graderPrompt = `Grade the following job-application text 1-10 for how AI-generated it sounds (1 = written by one specific human, 10 = obvious AI template). Judge: template phrases, uniform sentence lengths and rhythm, generic enthusiasm, filler. Reply with ONLY a JSON object: {"score": N, "worst_lines": ["up to 3 exact quotes of the most AI-sounding lines"]}.\n\nCOVER NOTE:\n${fields.cover_note}\n\nCOVER LETTER:\n${fields.cover_letter}\n\nFORM ANSWERS:\n${fields.answers}\n\nRESUME SUMMARY (first 400 chars):\n${(fields.resume || '').slice(0, 400)}`;
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 300, messages: [{ role: 'user', content: graderPrompt }] }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const text = (d.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+        const parsed = parseClaudeJson(text);
+        if (parsed && parsed.score >= 1 && parsed.score <= 10) {
+          score = parsed.score;
+          for (const q of (parsed.worst_lines || []).slice(0, 3)) flags.push({ where: 'grader', reason: `sounds AI-written: “${String(q).slice(0, 140)}”` });
+        }
+      } else {
+        graderNote = 'grader unavailable (' + r.status + ')';
+      }
+    } catch (e) {
+      graderNote = 'grader unavailable';
+    }
+  }
+  return json({ ok: true, score, flags, graderNote }, 200, cors);
+}
+
 // -------------------------------------------------------------------- tailor
 
 const SYSTEM_PROMPT = `You are a world-class resume writer, recruiter, and ATS/AI-screening specialist. Your job: rewrite one candidate's resume so it genuinely nails one specific job posting. The candidate is typically targeting remote customer-service roles, but tailor to whatever the posting actually is.
@@ -524,7 +623,7 @@ STEP 2 — HONESTY SELF-CHECK (before returning):
 Go through every claim in your output that carries a number, a tool, a language level, a certification, or a named skill. For each, confirm you can point to the line in the resume or situation it comes from. Fill claims_traced with these (claim + a short quote of its source line). Anything you cannot trace: REMOVE it from the resume/letters and put it in missing_keywords with an honest suggestion. claims_traced must cover every number in the output.
 
 SOUND HUMAN, NEVER AI-GENERATED (Robert Half: 67% of HR leaders say AI-looking applications slow hiring; Resume.io: 49% of hiring managers bin suspected-AI resumes):
-- Write like one specific person: concrete details from HER materials and THIS posting, varied sentence lengths, no template rhythm. Plain B2-level English a recruiter never has to reread (unless OUTPUT LANGUAGE says otherwise).
+- Write like one specific person: concrete details from HER materials and THIS posting, varied sentence lengths, no template rhythm. If a VOICE SAMPLE section is provided, match its register, sentence length and warmth in every letter, note and answer (never its content). Without one, default to plain B2-level English a recruiter never has to reread (unless OUTPUT LANGUAGE says otherwise).
 - Banned AI-tells everywhere: "I hope this finds you well", "delve", "leverage", "aligns perfectly", "unique blend of", "proven track record", "dynamic", "passionate", "I am thrilled", "excited to apply", "I am writing to express", "spearheaded", "seamless", "synergy", "results-driven", "in today's fast-paced". No sentence starting "As a...". No three-adjective lists. No closing like "I look forward to the opportunity to contribute".
 - cover_note: 120-180 words, human, specific to THIS company. It must contain at least TWO facts that only apply to this company/job (their product name, a line from the posting, their market, a tool they list). Any sentence that ASSUMES something about her not in her materials must end with " [delete if not true]". If you cannot find two company-specific facts in the posting, use one and add to questions_for_her: "What drew you to [company]? One real reason makes the note stronger."
 - follow_up: brief, warm, email-style; one nudge only (HR surveys: a check-in within 1-2 weeks is welcome; pushiness disqualifies).
@@ -618,7 +717,9 @@ async function tailor(body, env, cors) {
   const fitTh = Math.min(95, Math.max(10, Math.round(Number(s.fitThreshold)) || 60));
   const outLang = String(s.outputLanguage || '').slice(0, 30);
   const config = `CONFIG:\n- DNV THRESHOLD: €${dnv}/month gross${s.dnvVerified ? ` (last verified ${String(s.dnvVerified).slice(0, 20)})` : ''}\n- FIT THRESHOLD: ${fitTh}%${outLang ? `\n- OUTPUT LANGUAGE: ${outLang} (override — use this instead of the posting's language)` : ''}`;
-  const userMsg = `${config}\n\n----------------\n\nJOB POSTING:\n${jobText.slice(0, 16000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 12000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, knockout pre-check first, ATS-safe plain text, concise, JSON only.`;
+  const voice = String(body.voice || '').trim().slice(0, 1200);
+  const complaints = Array.isArray(body.complaints) ? body.complaints.slice(0, 12).map(c => String(c).slice(0, 200)) : [];
+  const userMsg = `${config}\n\n----------------\n\nJOB POSTING:\n${jobText.slice(0, 16000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 12000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}${voice ? `----------------\n\nHER VOICE SAMPLE (real sentences she wrote — match this register and rhythm in the letters, notes and answers; do not copy its content):\n${voice}\n\n` : ''}${complaints.length ? `----------------\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED FOR THESE REASONS — fix every one this time:\n${complaints.map(c => '- ' + c).join('\n')}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, knockout pre-check first, ATS-safe plain text, concise, JSON only.`;
 
   const callClaude = (model, maxTokens, stream) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
