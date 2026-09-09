@@ -102,11 +102,11 @@ ul.checks li:last-child{border-bottom:0}
 .pill.warn{background:rgba(224,138,0,.13);color:var(--warn)}
 .pill.info{background:rgba(124,92,255,.12);color:var(--brand)}
 /* welcome walkthrough */
-#tut{position:fixed;inset:0;background:rgba(21,19,31,.55);z-index:90;display:none}
-#tutCard{position:fixed;left:12px;right:12px;bottom:18px;background:var(--card);border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.35);padding:20px;z-index:91}
+#tut{position:fixed;inset:0;background:rgba(21,19,31,.62);z-index:90;display:none}
+#tutCard{position:fixed;left:12px;right:12px;bottom:18px;max-width:560px;margin:0 auto;background:var(--card);border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.45);padding:20px;z-index:99}
 #tutCard h3{margin:0 0 6px;font-size:1.05rem}
 #tutCard p{margin:0 0 14px;color:var(--muted);font-size:.92rem}
-.tut-target{position:relative;z-index:92;box-shadow:0 0 0 3px var(--brand),0 4px 30px rgba(124,92,255,.45)!important;border-radius:var(--radius)}
+.tut-target{position:relative;z-index:91;pointer-events:none;box-shadow:0 0 0 3px var(--brand),0 4px 30px rgba(124,92,255,.45)!important;border-radius:var(--radius)}
 .tut-dots{display:flex;gap:6px;margin-top:12px}
 .tut-dots span{width:8px;height:8px;border-radius:50%;background:var(--line)}
 .tut-dots span.on{background:var(--brand)}
@@ -570,8 +570,9 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v20';
 document.getElementById('verTag').textContent = APP_VERSION;
+if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch {} }
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
 if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
 store.write('rt_reloaded', v.v);
@@ -1708,7 +1709,7 @@ tutStep = i;
 const st = TUT_STEPS[i];
 if (tutTarget) tutTarget.classList.remove('tut-target');
 tutTarget = st.el ? $(st.el) : null;
-if (tutTarget) { tutTarget.classList.add('tut-target'); try{ tutTarget.scrollIntoView({block:'center'}); }catch{} }
+if (tutTarget) { tutTarget.classList.add('tut-target'); try{ tutTarget.scrollIntoView({block:'start'}); window.scrollBy(0,-70); }catch{} }
 else window.scrollTo(0,0);
 $('tutTitle').textContent = st.t;
 $('tutText').textContent = st.x;
