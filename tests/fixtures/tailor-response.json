@@ -1,0 +1,77 @@
+{
+  "_comment": "Synthetic reference response in the exact shape the Worker prompt demands (Phase 0 fixtures were skipped, so this is hand-built against tests/fixtures/resume.txt + job-support.txt). Every number here exists in the resume, profile, or posting — the honesty test depends on that.",
+  "tailored_resume": "ARTA KRASNIQI\nPristina, Kosovo · arta.k@example.com · +383 44 123 456 · linkedin.com/in/arta-k\nCustomer Support Specialist — Remote\n\nSUMMARY\nCustomer Support Specialist with 3 years of chat and email support experience. Handled 60+ tickets a day in Zendesk with a 95% CSAT, above the 90% target in this posting.\n\nEXPERIENCE\nCustomer Support Agent | ShopBall | Pristina, Kosovo | 2022 - 2025\n- Resolved 60+ customer chats and emails daily in English through Zendesk\n- Kept a 95% CSAT (customer satisfaction) score across 3 years\n- Documented 12 help-center articles adopted by the whole support team\n- Trained teammates on ticketing workflow in Slack\n\nWaitress | Cafe Lule | Pristina, Kosovo | 2020 - 2022\n- Resolved customer complaints in person and trained 2 new staff members\n\nSKILLS\nCustomer support, chat and email support, help-center writing, CSAT, ticketing\n\nEDUCATION\nHigh school diploma, Pristina, 2020\n\nLANGUAGES\nAlbanian (native), English (C1), Spanish (A2)\n\nTOOLS\nZendesk, Slack, Google Docs",
+  "match_before": 58,
+  "match_after": 84,
+  "match_explanation": "She meets the core requirements: 3 years support, C1 English, Zendesk, CET hours. The nice-to-have SaaS experience is missing.",
+  "knockout": [
+    {"gate": "2+ years in customer support", "verdict": "PASS", "note": "3 years at ShopBall"},
+    {"gate": "Fluent written English (C1 or better)", "verdict": "PASS", "note": "English C1 stated"},
+    {"gate": "Experience with Zendesk or similar", "verdict": "PASS", "note": "Zendesk daily for 3 years"},
+    {"gate": "European hours (CET ± 2)", "verdict": "PASS", "note": "she is in CET"}
+  ],
+  "fit": {"met_pct": 85, "proceed": true, "reason": "She meets every must-have; only SaaS product experience is missing."},
+  "changes": [
+    {"what": "Headline now mirrors the exact posting title", "why": "Exact-title resumes interview at about ten times the rate"},
+    {"what": "Satisfaction score rewritten as CSAT", "why": "The posting measures CSAT, so the screen matches her real metric"},
+    {"what": "Education and languages left as they were", "why": "No change needed"}
+  ],
+  "keywords_added": ["Customer Support Specialist", "CSAT", "Zendesk", "chat and email", "help-center", "ticketing"],
+  "missing_keywords": [
+    {"term": "SaaS product experience", "suggestion": "She supported an online retail platform; she can say software-based support honestly, not SaaS"}
+  ],
+  "gaps": [
+    {"need": "SaaS product familiarity", "fix": "Do the free Intercom Academy basics course", "time": "3-4 hours", "link": "https://academy.intercom.com/"}
+  ],
+  "claims_traced": [
+    {"claim": "3 years of support experience", "source": "Customer Support Agent | ShopBall | 2022 - 2025"},
+    {"claim": "60+ tickets a day", "source": "Answered 60+ chats and emails daily"},
+    {"claim": "95% CSAT", "source": "Kept a 95% customer satisfaction score"},
+    {"claim": "12 help-center articles", "source": "Wrote 12 help-center articles"},
+    {"claim": "Zendesk", "source": "Used Zendesk and Slack every day"},
+    {"claim": "English C1", "source": "LANGUAGES: English (C1)"}
+  ],
+  "questions_for_her": [],
+  "ats_check": [
+    {"item": "Standard section headers", "pass": true, "note": "SUMMARY through TOOLS present"},
+    {"item": "Single column, no tables", "pass": true, "note": "plain text only"},
+    {"item": "Keywords mirrored from posting", "pass": true, "note": "title, CSAT, Zendesk mirrored"},
+    {"item": "Contact info parseable", "pass": true, "note": "one line under the name"},
+    {"item": "Consistent dates", "pass": true, "note": "YYYY - YYYY throughout"},
+    {"item": "File format", "pass": true, "note": "upload as .docx or text PDF"}
+  ],
+  "cover_note": "Your posting says the team keeps CSAT above 90% on chat and email through Zendesk — that is the exact work I did for 3 years at ShopBall, where I held 95% while answering 60+ conversations a day. I also wrote 12 help-center articles, so your 40,000 small-business customers would get answers before they even open a chat. I work CET hours from Kosovo and your Deel contractor setup fits me well. I would be glad to show you how I handle a tricky ticket.",
+  "cover_letter": "Dear Hiring Team,\n\nYour scheduling software serves 40,000 small businesses, and your support team answers 40-60 conversations a day in Zendesk while keeping CSAT above 90%. That is the same shape as my last 3 years at ShopBall: 60+ chats and emails daily, a 95% satisfaction score, and 12 help-center articles that cut repeat questions for the whole team.\n\nI write clearly in English (C1), I already work CET hours, and your Deel setup works for me in Kosovo. My Spanish (A2) is basic but improving.\n\nI can start within 2 weeks and would be happy to do a trial shift so you can see how I work.\n\nThanks,\nArta Krasniqi",
+  "follow_up": "Hi Acme team, I applied for the Customer Support Specialist role last week and wanted to check in — still very interested. Happy to share anything else that helps. Thanks, Arta",
+  "screening_questions": [
+    {"q": "How many tickets can you handle per day?", "answer": "At ShopBall I answered 60+ chats and emails a day while keeping a 95% satisfaction score."},
+    {"q": "What ticketing tools have you used?", "answer": "Zendesk daily for 3 years, plus Slack for internal handoffs."},
+    {"q": "Are you available for European hours?", "answer": "Yes — I live in CET, so your hours are my normal day."},
+    {"q": "Are you authorized to work with us?", "answer": "I work as an independent contractor from Kosovo, or via an EOR like Deel or Remote."},
+    {"q": "When can you start?", "answer": "I can start within 2 weeks."}
+  ],
+  "scam_risk": {"level": "low", "score": 1, "reasons": []},
+  "location_fit": {"level": "good", "note": "EMEA remote and they hire worldwide via Deel — Kosovo works."},
+  "location_visa": {
+    "verdict": "This job works from Kosovo because they hire worldwide via Deel as contractor or EOR.",
+    "authorized_answer": "I work as an independent contractor from Kosovo, or via an EOR like Deel or Remote.",
+    "sponsorship_answer": "No — I work remotely; no sponsorship needed.",
+    "eor_note": "I already work as a contractor and Deel works for me — happy to use whichever setup you prefer."
+  },
+  "dnv_fit": {"status": "BELOW", "monthly_eur_estimate": 2600, "estimated": false, "note": "Posted €2,200-2,600 is under your €2,849 visa threshold — fine for now, not for the visa."},
+  "why_score": {"drivers": ["exact title match", "Zendesk + CSAT proof", "CET timezone"], "biggest_boost": "Add SaaS product familiarity through a free course"},
+  "tips": ["Apply today — the posting is fresh", "Use the cover letter; reword one line in your own voice", "The pay is under your visa threshold — ask about the range in the screen"],
+  "apply_kit": {
+    "contact": {"name": "Arta Krasniqi", "email": "arta.k@example.com", "phone": "+383 44 123 456", "location": "Pristina, Kosovo", "linkedin": "linkedin.com/in/arta-k"},
+    "answers": [
+      {"label": "Why do you want to work here?", "text": "Your team answers chat and email in Zendesk with a 90% CSAT floor — the exact work I held at 95% for 3 years."},
+      {"label": "Why are you a good fit?", "text": "60+ conversations a day, 95% CSAT, 12 help-center articles, and I already work CET hours."},
+      {"label": "Salary expectation", "text": "The posted €2,200-2,600 range works; I am flexible for the right role."},
+      {"label": "When can you start?", "text": "I can start within 2 weeks."},
+      {"label": "Location & remote setup", "text": "Based in Pristina, Kosovo (CET), fully remote via your Deel contractor setup."}
+    ]
+  },
+  "candidate_name": "Arta Krasniqi",
+  "job_title": "Customer Support Specialist",
+  "company": "Acme Software"
+}

@@ -346,7 +346,7 @@ Full list with links is in the project README, checked 9 Sep 2026.
 </details>
 </section>
 
-<footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
+<footer>Made with ❤️ · Your resume leaves this phone only to be tailored, and your application list syncs privately with your access code · <span id="verTag"></span></footer>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -557,7 +557,8 @@ if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
+document.getElementById('verTag').textContent = APP_VERSION;
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
 if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
 store.write('rt_reloaded', v.v);
@@ -672,14 +673,24 @@ if (jobUrl) result.job_url = jobUrl;
 result._fromFeed = !!window._jobFromFeed; window._jobFromFeed = false;
 $('jobInput').value = ''; store.write('rt_jobdraft', '');   // ready for the next job
 $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
-// anti-slop gate: mechanical scan + cheap grader; one regenerate with the
-// complaints fed back, then a visible warning if it's still off
+render(result);   // show it immediately — speed first
+// anti-slop runs in the background: if the draft was rough, a polished
+// version (or a visible warning) replaces it without making her wait
 if (!result._salvage) {
-$('loadingMsg').textContent = 'Checking it sounds like you…';
-try { result = await antiSlop(result, tailorBody); } catch {}
-$('loadingMsg').textContent = '';
+(async () => {
+try {
+const checked = await antiSlop(result, tailorBody);
+if (checked !== result) {
+if (result.job_url) checked.job_url = result.job_url;
+checked._fromFeed = result._fromFeed;
+const h = readHistory(); const e = h.find(x=>x.when===currentHistId);
+if (e) { e.result = checked; writeHistory(h); }
+render(checked, true);
+toast(checked._slop ? '🤖 Some lines still sound AI-ish — see the note' : '✨ Polished a rough first draft');
+} else if (result._slop) { render(result, true); }
+} catch {}
+})();
 }
-render(result);
 } catch(err){
 stopLoading(); tailoring = false;
 showErr(err && err.name === 'AbortError'
@@ -813,8 +824,7 @@ async function antiSlop(result, tb){
 let s = await slopScore(result, tb);
 const bad = x => (x.flags||[]).length > 0 || (x.score != null && x.score > 4);
 if (!bad(s)) return result;
-// one regenerate with the complaints fed back
-$('loadingMsg').textContent = 'First draft sounded off — rewriting it properly…';
+// one regenerate with the complaints fed back (background — she already has the draft)
 const complaints = (s.flags||[]).map(f=>f.where+': '+f.reason);
 if (s.score != null && s.score > 4) complaints.push('overall it reads AI-generated ('+s.score+'/10) — vary sentence lengths, cut template phrasing, be concrete');
 const r2 = await fetch(API_BASE + '/api/tailor', {

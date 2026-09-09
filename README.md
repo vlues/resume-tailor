@@ -12,12 +12,23 @@ The resume is saved in the phone's browser (localStorage) so it's a one-time pas
 
 ## How it works
 
-- **Frontend** — `index.html`, static, hosted on GitHub Pages: https://vlues.github.io/resume-tailor/
+- **Frontend** — `index.html`, static, hosted on GitHub Pages: https://vlues.github.io/resume-tailor/ (deploys via GitHub Actions, blocked when tests fail)
 - **Backend** — Cloudflare Worker (`worker/`) at `resume-tailor-api.streamedmusics.workers.dev`:
-  - `GET /api/jobs` — "found for you" feed: Remotive + RemoteOK + WeWorkRemotely, filtered to customer-service titles and Europe/anywhere-friendly locations, newest first (15-min upstream cache). Tapping a job on the site auto-tailors.
-  - `POST /api/fetch-job` — reads a job URL: dedicated adapters (Greenhouse boards-api, Lever postings API, SmartRecruiters API, LinkedIn jobs-guest), then schema.org `JobPosting` JSON-LD, then main-content text; guides the user to paste the description when a site blocks robots (LinkedIn/Indeed block datacenter IPs).
-  - `POST /api/tailor` — job + resume + saved "situation" (defaults to Kosovo → Spain digital-nomad-visa plan) → Claude with strict honesty + ATS/AI-screener rules. Returns tailored resume, before/after match scores, changes, keywords, ATS checklist, location-fit verdict, scam-risk flag, screening questions with answer tips, cover note, full cover letter, follow-up message, and per-job tips.
-- The Anthropic key lives **only** in the Worker as a secret. Optional `ACCESS_CODE` gates the API (the site shows a code box only when one is set).
+  - `GET /api/jobs` — feed from Remotive/RemoteOK/WWR/Jobicy + ~36 verified company boards (`worker/companies.json`), hard-filtered (title synonyms, EU/anywhere regions, ≤7 days, deduped, Kosovo-OK flagged), refreshed into KV by a 3-hour cron; ETag/304 revalidation. `?syn=` takes her title synonyms.
+  - `POST /api/fetch-job` — reads a job URL: ATS adapters (Greenhouse, Lever, SmartRecruiters, LinkedIn guest), then JSON-LD, then readable text, then a guided "paste it" fallback. 8–12s upstream timeouts.
+  - `POST /api/tailor` — streaming; honesty-first prompt (knockout pre-check, fit rule, claims traced to her materials, CEFR languages + tools sections, DNV salary fit, scam score, drafted screening answers). Per-request Profile config — nothing about her situation is hard-coded.
+  - `POST /api/slop` — mechanical ban-list/number scan (`worker/banned.json`) + a cheap Haiku "sounds AI?" grade; the site regenerates once in the background on a bad grade.
+  - `GET/POST /api/apps` — application records in KV (access-code gated): sync, Parker's read-only `&view=html` verification page, `&format=csv` export.
+  - `GET /api/errors` — last-100 failure ring buffer (access-code gated). `GET /api/health` — liveness (+`?deep=1` probes the model).
+- The Anthropic key lives **only** in the Worker as a secret. `ACCESS_CODE` gates the paid calls and the records.
+
+## Tests
+
+```bash
+node tests/run.mjs
+```
+
+Zero dependencies; runs against `tests/fixtures/` (synthetic — Phase 0 real fixtures were skipped) and checks response shape, honesty, the ban list, knockout/DNV presence, feed filter rules, fallbacks, page budget and layout guards. The same command runs in CI on every push and blocks the Pages deploy on failure. A nightly Action probes the API and feed quality and opens a GitHub issue if something is broken.
 
 ## Evidence behind the tactics
 

@@ -1,0 +1,53 @@
+name: Nightly health check
+on:
+  schedule:
+    - cron: '17 5 * * *'   # 05:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Check API health + feed quality
+        id: probe
+        run: |
+          node - <<'EOF'
+          const API = 'https://resume-tailor-api.streamedmusics.workers.dev';
+          const problems = [];
+          const h = await fetch(API + '/api/health').then(r => r.json()).catch(e => null);
+          if (!h || !h.ok) problems.push('/api/health is down or not ok');
+          else if (!h.hasKey) problems.push('/api/health says the Anthropic key is missing');
+          const f = await fetch(API + '/api/jobs').then(r => r.json()).catch(() => null);
+          if (!f || !f.jobs) problems.push('/api/jobs is down');
+          else {
+            if (f.jobs.length < 5) problems.push('feed has only ' + f.jobs.length + ' jobs');
+            const now = Date.now();
+            const junk = f.jobs.filter(j => !j.ts || now - j.ts > 7 * 86400000
+              || /director|head of|vp\b|microservices/i.test(j.title)).length;
+            const rate = Math.round(100 * junk / f.jobs.length);
+            if (rate > 20) problems.push('feed junk rate ' + rate + '% (stale/senior/off-topic)');
+            if (f.stale) problems.push('feed is serving a stale KV copy (live refresh failing)');
+            const age = f.updated ? (now - f.updated) / 3600000 : 99;
+            if (age > 6) problems.push('feed KV is ' + Math.round(age) + 'h old — cron may be broken');
+          }
+          const fs = await import('node:fs');
+          fs.writeFileSync(process.env.GITHUB_OUTPUT,
+            'problems<<X\n' + problems.join('\n') + '\nX\nbroken=' + (problems.length ? 'yes' : 'no') + '\n', { flag: 'a' });
+          console.log(problems.length ? problems.join('\n') : 'all healthy');
+          EOF
+      - name: Open an issue so Parker gets an email
+        if: steps.probe.outputs.broken == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "🔴 Nightly health check failed $(date -u +%F)" \
+            --body "$(printf 'The nightly probe found:\n\n%s\n\nAPI: https://resume-tailor-api.streamedmusics.workers.dev/api/health\nErrors log: /api/errors?code=... (your access code)' "${{ steps.probe.outputs.problems }}")" \
+            || echo "issue creation failed (maybe one already open)"

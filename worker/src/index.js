@@ -201,7 +201,8 @@ async function fetchAllRaw() {
 // All hard filters in one place: title synonyms, location, freshness, dedupe.
 function filterFeed(raw, synCsv, freshDays) {
   const syn = String(synCsv || DEFAULT_SYNONYMS).split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
-  const titleRe = new RegExp(syn.map(escapeRe).join('|'), 'i');
+  // word-start boundary so "service" can't match "Microservices"
+  const titleRe = new RegExp('\\b(?:' + syn.map(escapeRe).join('|') + ')', 'i');
   const now = Date.now();
   const seen = new Set();
   const out = [];
@@ -950,13 +951,14 @@ If a CANDIDATE SITUATION section is provided: use it for emphasis choices, knock
 ats_check must cover: standard section headers, single column / no tables/graphics, keywords mirrored from posting, contact info parseable, consistent dates, file-format advice (one line: .docx or text-based PDF).
 Scores: match_before = the ORIGINAL resume vs the posting; match_after = the tailored version. Must-haves ~70%, nice-to-haves ~30%; tailoring closes wording gaps, not experience gaps. 75-92 typical after tailoring; never 100. If a section of the original is already right for this job, keep it and note "no change needed" in changes — never pad.
 
-BE CONCISE — SHE IS ON A PHONE. Hard caps:
-- tailored_resume: about the original's length, never over one page (~450 words).
-- knockout ≤ 6. changes ≤ 5, one short sentence each. keywords_added ≤ 12. missing_keywords ≤ 4. gaps ≤ 4. claims_traced ≤ 12 (every number must be there). questions_for_her ≤ 3.
-- ats_check exactly 6, notes ≤ 12 words. screening_questions exactly 5, answers ≤ 45 words.
-- cover_letter 130-170 words. cover_note 120-180 words. follow_up ≤ 45 words.
-- tips ≤ 3, ≤ 20 words each. match_explanation ≤ 35 words. All notes/verdicts ≤ 30 words.
-No filler, no repetition between sections.`;
+BE CONCISE — SHE IS ON A PHONE AND SPEED IS PART OF THE PRODUCT. Hard caps:
+- tailored_resume: about the original's length, never over one page (~400 words).
+- knockout ≤ 5, notes ≤ 10 words. changes ≤ 4, one short sentence each. keywords_added ≤ 8. missing_keywords ≤ 3. gaps ≤ 3. questions_for_her ≤ 2.
+- claims_traced ≤ 8: ONLY claims carrying a number, tool, language level, or certification; sources ≤ 8 words.
+- ats_check exactly 6, notes ≤ 8 words. screening_questions exactly 5, answers ≤ 35 words.
+- cover_letter 120-150 words. cover_note 120-150 words. follow_up ≤ 40 words.
+- tips ≤ 3, ≤ 15 words each. match_explanation ≤ 30 words. All notes/verdicts ≤ 25 words.
+Never restate the posting or repeat content between sections. Shorter is better everywhere.`;
 
 async function tailor(body, env, cors) {
   if (!env.ANTHROPIC_API_KEY) {
