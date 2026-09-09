@@ -325,6 +325,23 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     </div>
   </section>
 
+  <!-- stats -->
+  <section class="card" id="statsCard" style="display:none">
+    <h2>📈 Your numbers</h2>
+    <p class="hint">Real data from your own applications, next to what the research says is normal.</p>
+    <div id="paceGuard"></div>
+    <div id="statsBody"></div>
+    <div id="whatToChange"></div>
+    <details class="adv"><summary>Where the benchmarks come from</summary>
+      <p class="muted" style="margin-top:8px">
+        Tailored 4.23% vs untailored 2.07% interview rate; 9.25% at 11–20 applications/mo vs 2.58% at 100+; median 108 days search-to-offer — Huntr, Q1 2026 (139,927 applications).
+        Follow-up welcome within 1–2 weeks — Robert Half/Accountemps, 2017.
+        Typical employer time-to-fill ≈ 42 days — SHRM Human Capital Benchmarking (2016; unchanged in SHRM’s 2025 data).
+        Full list with links is in the project README, checked 9 Sep 2026.
+      </p>
+    </details>
+  </section>
+
   <footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
 </div>
 <div class="toast" id="toast"></div>
@@ -528,7 +545,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v15';
+const APP_VERSION = 'v16';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
   if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
     store.write('rt_reloaded', v.v);
@@ -1275,6 +1292,7 @@ function saveHistory(r){
     company: r.company||'', title: r.job_title||'', url: r.job_url||'',
     source: r._fromFeed ? 'feed' : 'pasted',
     score: r.match_after ?? null, dnv: (r.dnv_fit && r.dnv_fit.status) || '',
+    noteLen: String(r.cover_note||'').split(/\s+/).filter(Boolean).length,
     status: 'tailored', updatedAt: Date.now(), result: r,
   });
   writeHistory(h);
@@ -1284,7 +1302,7 @@ function entryById(id){ return readHistory().find(e => e.when === id); }
 function updateEntry(id, fn){
   const h = readHistory(); const e = h.find(x=>x.when===id); if(!e) return;
   fn(e); touch(e); writeHistory(h);
-  renderHistory(); renderDue(); refreshAppliedBtn(); renderDnvClock();
+  renderHistory(); renderDue(); refreshAppliedBtn(); renderDnvClock(); renderStats();
 }
 
 // ---- due engine: outreach day 3, follow-up day 7 and 14, then archive
@@ -1367,6 +1385,7 @@ function slimApp(e){
     url: e.url||r.job_url||'', source: e.source||'pasted', contact: e.contact||'',
     appliedAt: e.appliedAt||null, outreachAt: e.outreachAt||null, fu1At: e.fu1At||null, fu2At: e.fu2At||null,
     proofAt: e.proofAt||null, status: e.status||'tailored', startedAt: e.startedAt||null,
+    repliedAt: e.repliedAt||null, interviewAt: e.interviewAt||null, noteLen: e.noteLen||null,
     score: e.score ?? r.match_after ?? null, dnv: e.dnv||'',
     resume: (r.tailored_resume||'').slice(0,6000), cover_note: (r.cover_note||'').slice(0,2000),
     updatedAt: e.updatedAt||e.when };
@@ -1398,7 +1417,8 @@ async function pullApps(){
       if (local){
         if ((a.updatedAt||0) > (local.updatedAt||0)){
           Object.assign(local, {appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
-            proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, contact:a.contact, updatedAt:a.updatedAt});
+            proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, contact:a.contact, updatedAt:a.updatedAt,
+            repliedAt:a.repliedAt, interviewAt:a.interviewAt, noteLen:a.noteLen});
           changed=true;
         }
       } else {
@@ -1514,6 +1534,8 @@ $('historyList').addEventListener('change', ev => {
   const e = readHistory()[Number(s.dataset.status)]; if (!e) return;
   updateEntry(e.when, x => {
     x.status = s.value;
+    if (['replied','interview','offer','started'].includes(s.value) && !x.repliedAt) x.repliedAt = Date.now();
+    if (['interview','offer','started'].includes(s.value) && !x.interviewAt) x.interviewAt = Date.now();
     if ((s.value==='offer'||s.value==='started') && !x.startedAt) x.startedAt = Date.now();
   });
   toast('Status: ' + s.value + ' ✓');
@@ -1563,10 +1585,104 @@ $('csvBtn').onclick = async () => {
   await download(new Blob([cols.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}), 'applications.csv');
 };
 
+// ---------- stats: her real numbers vs the research ----------
+function statsData(){
+  const now = Date.now();
+  const apps = readHistory().filter(e => e.appliedAt);
+  const replied = apps.filter(e => e.repliedAt || ['replied','interview','offer','started'].includes(e.status));
+  const interviewed = apps.filter(e => e.interviewAt || ['interview','offer','started'].includes(e.status));
+  const weekly = [];
+  for (let w=7; w>=0; w--){
+    const from = now - (w+1)*7*DAY, to = now - w*7*DAY;
+    weekly.push(apps.filter(e => e.appliedAt > from && e.appliedAt <= to).length);
+  }
+  const replyDays = apps.filter(e=>e.repliedAt).map(e=>Math.round((e.repliedAt-e.appliedAt)/DAY)).sort((a,b)=>a-b);
+  const median = replyDays.length ? replyDays[Math.floor(replyDays.length/2)] : null;
+  const rate = arr => { const a = apps.filter(arr); const r = a.filter(e=>e.repliedAt||['replied','interview','offer','started'].includes(e.status));
+    return { n: a.length, r: r.length, pct: a.length ? Math.round(1000*r.length/a.length)/10 : null }; };
+  return {
+    apps, weekly, replied, interviewed, median,
+    thisWeek: weekly[7],
+    replyRate: apps.length ? Math.round(1000*replied.length/apps.length)/10 : null,
+    interviewRate: apps.length ? Math.round(1000*interviewed.length/apps.length)/10 : null,
+    buckets: {
+      'Where the job came from': [ ['From the feed', rate(e=>e.source==='feed')], ['Pasted myself', rate(e=>e.source!=='feed')] ],
+      'Match score': [ ['75%+', rate(e=>e.score>=75)], ['60–74%', rate(e=>e.score>=60&&e.score<75)], ['Under 60%', rate(e=>e.score!=null&&e.score<60)] ],
+      'Visa income fit': [ ['MEETS', rate(e=>e.dnv==='MEETS')], ['UNKNOWN', rate(e=>e.dnv==='UNKNOWN'||!e.dnv)], ['BELOW', rate(e=>e.dnv==='BELOW')] ],
+      'Emailed the hiring manager': [ ['Yes', rate(e=>e.outreachAt&&!e.outreachAtSkipped)], ['No', rate(e=>!e.outreachAt||e.outreachAtSkipped)] ],
+      'Sent a follow-up': [ ['Yes', rate(e=>e.fu1At&&!e.fu1AtSkipped)], ['No', rate(e=>!e.fu1At||e.fu1AtSkipped)] ],
+      'Cover note length': [ ['Under 100 words', rate(e=>e.noteLen&&e.noteLen<100)], ['100–180', rate(e=>e.noteLen>=100&&e.noteLen<=180)], ['Over 180', rate(e=>e.noteLen>180)] ],
+    },
+  };
+}
+function bar(label, value, max, text){
+  const w = max ? Math.max(2, Math.round(100*value/max)) : 2;
+  return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.85rem">'+
+    '<span style="flex:0 0 108px;color:var(--muted)">'+esc(label)+'</span>'+
+    '<span style="flex:1;background:var(--bg);border-radius:6px;overflow:hidden"><span style="display:block;height:14px;width:'+w+'%;background:var(--brand);border-radius:6px"></span></span>'+
+    '<span style="flex:0 0 62px;text-align:right">'+esc(text)+'</span></div>';
+}
+function takeaway(t){ return '<p class="muted" style="margin:4px 0 14px">↳ '+esc(t)+'</p>'; }
+function renderStats(){
+  const d = statsData();
+  $('statsCard').style.display = d.apps.length ? 'block' : 'none';
+  if (!d.apps.length) return;
+  let h = '';
+  // headline numbers
+  h += '<div class="row" style="gap:14px;margin-bottom:10px">'+
+    [['Applied', d.apps.length], ['Replies', d.replied.length], ['Interviews', d.interviewed.length]]
+      .map(x=>'<div style="flex:1;text-align:center;background:var(--bg);border-radius:12px;padding:10px"><b style="font-size:1.3rem">'+x[1]+'</b><br><span class="muted" style="font-size:.8rem">'+x[0]+'</span></div>').join('')+'</div>';
+  // applications per week
+  const maxW = Math.max(1, ...d.weekly);
+  h += '<p class="hint" style="margin:0 0 4px">Applications per week (last 8):</p>';
+  h += d.weekly.map((n,i)=> bar(i===7?'this week':(7-i)+'w ago', n, maxW, n+' job'+(n===1?'':'s'))).join('');
+  h += takeaway(d.thisWeek>=3 && d.thisWeek<=20 ? 'Good pace — steady beats bursts.' : d.thisWeek===0 ? 'Nothing sent this week yet — one tailored application today restarts the streak.' : d.thisWeek>20 ? 'That’s a lot — see the pace note above.' : 'A few more this week wouldn’t hurt — 11–20/month is the sweet spot (9.25% interview rate).');
+  // reply + interview rate vs benchmarks
+  h += '<p class="hint" style="margin:10px 0 4px">Your rates vs the research:</p>';
+  h += bar('Your interviews', d.interviewRate||0, 12, (d.interviewRate??'–')+'%');
+  h += bar('Tailored (norm)', 4.23, 12, '4.23%');
+  h += bar('Untailored (norm)', 2.07, 12, '2.07%');
+  h += takeaway(d.apps.length < 10 ? 'Too few applications to judge yet — rates settle after ~10.' :
+    (d.interviewRate >= 4.23 ? 'Above the tailored-resume benchmark. Keep doing exactly this.' :
+     d.interviewRate >= 2.07 ? 'Between untailored and tailored norms — sharpen targeting (aim for 75%+ matches).' :
+     'Below the norms — target fresher, better-fitting jobs and email the hiring manager.'));
+  if (d.median != null) {
+    h += '<p class="hint" style="margin:10px 0 4px">Replies take:</p>' + bar('Your median', d.median, 42, d.median+' days') + bar('Employer fill', 42, 42, '≈42 days');
+    h += takeaway('Employers typically take ~6 weeks to fill a role — silence for 2–3 weeks is normal, not a no.');
+  }
+  // reply-rate buckets
+  for (const [name, rows] of Object.entries(d.buckets)){
+    const used = rows.filter(([,v])=>v.n>0);
+    if (used.length < 2) continue;
+    h += '<p class="hint" style="margin:10px 0 4px">Reply rate — '+esc(name)+':</p>';
+    h += used.map(([lab,v])=> bar(lab, v.pct||0, 100, v.pct+'% ('+v.r+'/'+v.n+')')).join('');
+    const small = used.some(([,v])=>v.n<5);
+    const best = used.slice().sort((a,b)=>(b[1].pct||0)-(a[1].pct||0))[0];
+    h += takeaway((small?'Small sample so far — ':'')+'best: '+best[0]+' at '+(best[1].pct||0)+'%.');
+  }
+  $('statsBody').innerHTML = h;
+  // pace guard
+  $('paceGuard').innerHTML = d.thisWeek > 20
+    ? '<div class="miss" style="border-color:rgba(224,138,0,.4)"><b>🐢 Slow down — quality wins.</b> You’ve sent '+d.thisWeek+' this week. The data: 11–20 applications/month interview at 9.25% each; 100+ drops to 2.58% (Huntr Q1 2026). Spend the next hour emailing hiring managers for jobs you already applied to instead.</div>'
+    : '';
+  // weekly "what to change" — one concrete move, with the stat that justifies it
+  const outreachRate = d.apps.length ? d.apps.filter(e=>e.outreachAt&&!e.outreachAtSkipped).length/d.apps.length : 0;
+  let change;
+  if (d.thisWeek===0) change = 'Apply to one job today. Tailored applications interview at 4.23% each — but only the ones you actually send.';
+  else if (d.thisWeek>20) change = 'Pause new applications for a day and send hiring-manager emails instead — volume above ~20/week correlates with a third of the interview rate.';
+  else if (d.apps.length>=3 && outreachRate<0.4) change = 'Email the hiring manager for your last few applications (the day-3 drafts are ready in “Due today”). Referrals and direct contact are ~7% of applications but 30–50% of hires.';
+  else if (dueItems().length) change = 'Clear the “Due today” list first — HR managers say a follow-up within 1–2 weeks is welcome, and it’s already written for you.';
+  else if (d.apps.length>=10 && (d.interviewRate||0)<2.1) change = 'Raise your bar: skip anything scoring under 75% and apply the day a job appears — fresh + high-fit is what moves the rate.';
+  else if (d.apps.length>=5 && d.apps.filter(e=>e.dnv==='MEETS').length===0) change = 'None of your applications show pay meeting the visa threshold yet — prioritise the jobs with a “visa ✓” chip in the feed.';
+  else change = 'Nothing to fix this week — keep the pace. Median search-to-offer is 108 days, so steady weeks are how this is won.';
+  $('whatToChange').innerHTML = '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>🎯 This week, change one thing:</b><br>'+esc(change)+'</div>';
+}
+
 renderHistory();
 renderDue();
 renderDnvClock();
-pullApps().then(()=>{ renderDue(); });
+renderStats();
+pullApps().then(()=>{ renderDue(); renderStats(); });
 // nudge when something is due: toast + system notification when allowed
 (() => {
   const due = dueItems();

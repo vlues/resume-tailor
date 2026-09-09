@@ -44,6 +44,7 @@ Every source below was opened and checked on **2026-09-09**. Rules of the list: 
 - **Tailored cover letters: 16.4% vs 10.7% callback (+53%)** (7,287 applications; exact percentages appear in the results chart, +53% in the text) — [ResumeGo field experiment](https://www.resumego.net/research/cover-letters/) ✅ verified
 - **Follow-ups welcome within 1–2 weeks (36% say that's the right window); email preferred 64% vs phone 21%** — [Accountemps/Robert Half](https://www.prnewswire.com/news-releases/the-art-of-following-up-300521814.html) ✅ verified
 - **Referrals: ~7% of applicants but 30–50% of hires** — [Zippia](https://www.zippia.com/advice/employee-referral-statistics/) ✅ verified. ⚠️ The "email the hiring manager 3–5 days after applying" tactic has **no study behind it** — it's practitioner advice and is labeled as such in the tool.
+- **Typical employer time-to-fill ≈ 42 days** (2,048 respondents) — [SHRM Human Capital Benchmarking](https://www.shrm.org/topics-tools/news/shrm-benchmarking-report-4129-average-cost-per-hire) (2016 report; SHRM's 2025 data reports the same 42-day average) ✅ verified 2026-09-09 — used in the Stats tab so silence doesn't read as rejection
 - ❌ **Apply-within-96-hours ≈ 8× (TalentWorks)** — the primary is **dead** (talent.works redirects to a lander; company defunct). Secondaries preserve the stat but it can no longer be verified, so the site no longer states it as a number; freshness still matters per Huntr's Indeed finding above.
 
 **Kosovo → Spain (digital-nomad visa, checked 2026-09-09)**

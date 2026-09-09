@@ -659,6 +659,7 @@ async function appsStore(request, url, env, cors) {
       appliedAt: a.appliedAt || null, outreachAt: a.outreachAt || null,
       fu1At: a.fu1At || null, fu2At: a.fu2At || null, proofAt: a.proofAt || null,
       status: String(a.status || 'applied').slice(0, 20), startedAt: a.startedAt || null,
+      repliedAt: a.repliedAt || null, interviewAt: a.interviewAt || null, noteLen: Number(a.noteLen) || null,
       score: Number(a.score) || null, dnv: String(a.dnv || '').slice(0, 12),
       resume: String(a.resume || '').slice(0, 6000), cover_note: String(a.cover_note || '').slice(0, 2000),
       updatedAt: a.updatedAt || Date.now(),
