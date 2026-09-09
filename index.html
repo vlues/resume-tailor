@@ -136,13 +136,20 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <summary>🌍 Your situation (already filled in — tap to check)</summary>
       <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
       <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
+      <div class="row" style="align-items:flex-end">
+        <label style="flex:1;min-width:130px"><span class="muted">Visa income need (€/month gross)</span>
+          <input type="text" id="setDnv" inputmode="numeric" placeholder="2849"></label>
+        <label style="flex:1;min-width:130px"><span class="muted">“Low odds” below (% of requirements)</span>
+          <input type="text" id="setFit" inputmode="numeric" placeholder="60"></label>
+      </div>
+      <p class="muted">€2,849 = Spain digital-nomad visa minimum, checked 9 Sep 2026. Change it if the rules change.</p>
     </details>
   </section>
 
   <!-- STEP 2: pick a job -->
   <section class="card">
     <h2><span class="step">2</span> Pick a job</h2>
-    <p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the day you see it: early applicants are ~8× more likely to get interviews.</p>
+    <p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the day you see it — fresh postings convert best, and a tailored resume interviews at about twice the rate of an untailored one.</p>
     <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
     <div class="row" style="margin-top:4px"><button class="btn small" id="feedRefresh">🔄 More jobs</button></div>
 
@@ -170,6 +177,8 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <a class="btn small" id="openJobBtn" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none">🔗 Open job page</a>
     </div>
     <div id="resultFu" style="margin:-4px 0 12px"></div>
+    <div class="miss" id="knockoutBanner" style="display:none"></div>
+    <div class="miss" id="fitBanner" style="display:none"></div>
     <div class="score-wrap">
       <div class="ring">
         <svg width="110" height="110" viewBox="0 0 110 110">
@@ -183,8 +192,11 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
         <div>Before tailoring: <b id="scoreBefore" style="color:var(--muted)">–</b></div>
         <div>After tailoring: <b id="scoreAfter">–</b></div>
         <p class="muted" id="scoreWhy" style="margin:8px 0 0"></p>
+        <p class="muted" id="outWhy" style="margin:8px 0 0"></p>
       </div>
     </div>
+    <div class="miss" id="dnvBanner" style="display:none"></div>
+    <div id="outAsk"></div>
 
     <div class="tabs" id="tabs">
       <button class="tab on" data-pane="paneResume">📋 Resume</button>
@@ -212,6 +224,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <div id="outChanges"></div>
       <div id="outKeywords" style="margin-top:14px"></div>
       <div id="outMissing" style="margin-top:14px"></div>
+      <div id="outGaps" style="margin-top:14px"></div>
     </div>
 
     <div class="pane" id="paneAts">
@@ -285,6 +298,26 @@ $('profileText').addEventListener('input', () => {
   clearTimeout($('profileText')._t);
   $('profileText')._t = setTimeout(()=> store.write('rt_profile', $('profileText').value.trim()), 800);
 });
+// per-request settings (Phase 2c will grow this into a full Profile screen)
+function readSettings(){
+  try { return JSON.parse(store.read('rt_settings')||'{}') } catch { return {} }
+}
+function currentSettings(){
+  return {
+    dnvMonthly: Math.round(Number($('setDnv').value)) || 2849,
+    fitThreshold: Math.round(Number($('setFit').value)) || 60,
+    dnvVerified: '2026-09-09',
+  };
+}
+(() => {
+  const s = readSettings();
+  $('setDnv').value = s.dnvMonthly || '';
+  $('setFit').value = s.fitThreshold || '';
+  for (const id of ['setDnv','setFit']) $(id).addEventListener('input', () => {
+    clearTimeout($(id)._t);
+    $(id)._t = setTimeout(()=> store.write('rt_settings', JSON.stringify(currentSettings())), 600);
+  });
+})();
 
 // ---------- file upload (.txt/.docx/.pdf) ----------
 $('resumeFile').addEventListener('change', async e => {
@@ -338,7 +371,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v10';
+const APP_VERSION = 'v11';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
   if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
     store.write('rt_reloaded', v.v);
@@ -413,7 +446,7 @@ async function doTailor(){
 
     const r2 = await fetch(API_BASE + '/api/tailor', {
       method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
-      body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim(), stream: true })
+      body: JSON.stringify({ resume, jobText, accessCode: code, profile: $('profileText').value.trim(), settings: currentSettings(), stream: true })
     });
     const ctype = r2.headers.get('content-type') || '';
     let result;
@@ -540,12 +573,16 @@ function buildFallbackKit(r){
   const name = r.candidate_name || (res.split('\n').map(s=>s.trim()).find(s=>s && !s.includes('@') && !/\d{3}/.test(s)) || '');
   const linkedin = (res.match(/(?:linkedin\.com\/in\/|linkedin\.com\/)[^\s|,]+/i) || [''])[0];
   const location = (prof.match(/Based in ([^.(]+)/i) || [,''])[1].trim();
-  const salaryGoal = /€\s?2,?8\d\d/.test(prof) ? 'I’m targeting around €2,900–3,300 gross monthly, and flexible for the right role.' : 'I’m flexible — keen to hear the range for this role.';
+  // honesty: nothing invented — only what her own materials state, else leave it to her
+  const dnvGoal = (readSettings().dnvMonthly || (/€\s?2,?8\d\d/.test(prof) ? 2849 : 0));
+  const salaryGoal = dnvGoal
+    ? 'I’m targeting at least €' + dnvGoal.toLocaleString('en') + ' gross monthly, and flexible for the right role.'
+    : 'I’m flexible — keen to hear the range for this role.';
   const answers = [
     r.cover_note ? { label: 'Why do you want to work here?', text: r.cover_note } : null,
     { label: 'Salary expectation', text: salaryGoal },
-    { label: 'When can you start?', text: 'Right away — I’m fully available and can start immediately.' },
-    { label: 'Location & remote setup', text: (location ? 'Based in ' + location + ' (CET timezone). ' : '') + 'Fully set up for remote work: quiet space, reliable internet, headset.' },
+    { label: 'When can you start?', text: '(Write your real notice period / start date here.)' },
+    { label: 'Location & remote setup', text: (location ? 'Based in ' + location + '. ' : '') + '(Add your own words about your remote setup — only what’s true.)' },
   ].filter(Boolean);
   return { contact: { name, email, phone, location, linkedin }, answers };
 }
@@ -590,6 +627,48 @@ function render(r, fromHistory){
 
   $('outResume').textContent = lastResume;
 
+  // knockout pre-check — hard gates first, before she reads anything else
+  const ko = r.knockout || [];
+  const koFails = ko.filter(k=>k.verdict==='FAIL'), koAsks = ko.filter(k=>k.verdict==='ASK');
+  $('knockoutBanner').style.display = (koFails.length || koAsks.length) ? 'block' : 'none';
+  if (koFails.length || koAsks.length) {
+    $('knockoutBanner').style.borderColor = koFails.length ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
+    $('knockoutBanner').style.background = koFails.length ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
+    $('knockoutBanner').innerHTML =
+      (koFails.length ? '<b>🔴 This job has a hard no — read before spending time:</b><br>' + koFails.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '') +
+      (koFails.length && koAsks.length ? '<br>' : '') +
+      (koAsks.length ? '<b>🟡 They’ll ask — check you can answer yes:</b><br>' + koAsks.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '');
+  }
+  // fit verdict — “low odds” beats a quietly weak tailor
+  const fit = r.fit || {};
+  $('fitBanner').style.display = (fit.proceed === false) ? 'block' : 'none';
+  if (fit.proceed === false) {
+    $('fitBanner').style.borderColor = 'rgba(224,138,0,.4)';
+    $('fitBanner').innerHTML = '<b>⚖️ Low odds — your time is probably better spent elsewhere.</b><br>' +
+      esc(fit.reason || '') + (fit.met_pct != null ? ' <span class="muted">(you meet ~' + clamp(fit.met_pct) + '% of what they ask for)</span>' : '');
+  }
+  // why this score + the one change that moves it most
+  const why = r.why_score || {};
+  $('outWhy').innerHTML = (why.drivers||[]).length || why.biggest_boost
+    ? (why.drivers||[]).map(esc).join(' · ') + (why.biggest_boost ? '<br><b style="color:var(--ink)">Biggest boost:</b> ' + esc(why.biggest_boost) : '')
+    : '';
+  // digital-nomad-visa fit
+  const dnv = r.dnv_fit || {};
+  $('dnvBanner').style.display = dnv.status && dnv.note ? 'block' : 'none';
+  if (dnv.status && dnv.note) {
+    const ic = dnv.status === 'MEETS' ? '🟢' : dnv.status === 'BELOW' ? '🔴' : '🟡';
+    $('dnvBanner').style.borderColor = dnv.status === 'MEETS' ? 'rgba(31,169,113,.45)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
+    $('dnvBanner').style.background = dnv.status === 'MEETS' ? 'rgba(31,169,113,.08)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
+    $('dnvBanner').innerHTML = '<b>' + ic + ' Visa income check: ' + esc(dnv.status) + '</b>' +
+      (dnv.estimated && dnv.monthly_eur_estimate ? ' <span class="muted">(≈€' + esc(dnv.monthly_eur_estimate) + '/mo — an estimate, not from the posting)</span>' : '') +
+      '<br>' + esc(dnv.note);
+  }
+  // questions she should answer to make the result stronger
+  $('outAsk').innerHTML = (r.questions_for_her||[]).length
+    ? '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>✍️ Answer these and tailor again — it gets stronger:</b><br>' +
+      r.questions_for_her.map(q=>'• '+esc(q)).join('<br>') + '</div>'
+    : '';
+
   $('outTips').innerHTML = (r.tips||[]).length
     ? '<p class="hint" style="margin:0 0 4px">💡 For this application:</p>' +
       r.tips.map(t=>'<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)">'+esc(t)+'</div>').join('') +
@@ -601,8 +680,13 @@ function render(r, fromHistory){
     ? '<p class="hint" style="margin:0 0 4px">Keywords now in your resume:</p>' + r.keywords_added.map(k=>'<span class="kw">'+esc(k)+'</span>').join('')
     : '';
   $('outMissing').innerHTML = (r.missing_keywords||[]).length
-    ? '<p class="hint" style="margin:0 0 4px">They also want these — nothing was made up, but worth a look:</p>' +
+    ? '<p class="hint" style="margin:0 0 4px">Couldn’t honestly claim — nothing was made up:</p>' +
       r.missing_keywords.map(m=>'<div class="miss"><b>'+esc(m.term)+'</b> — '+esc(m.suggestion)+'</div>').join('')
+    : '';
+  $('outGaps').innerHTML = (r.gaps||[]).length
+    ? '<p class="hint" style="margin:0 0 4px">Gaps you can close — fastest honest fixes:</p>' +
+      r.gaps.map(g=>'<div class="miss"><b>'+esc(g.need)+'</b> — '+esc(g.fix)+(g.time?' <span class="muted">('+esc(g.time)+')</span>':'')+
+        (g.link?'<br><a href="'+esc(g.link)+'" target="_blank" rel="noopener" style="color:var(--brand)">Free course →</a>':'')+'</div>').join('')
     : '';
 
   $('outAts').innerHTML = (r.ats_check||[]).map(c =>
@@ -619,7 +703,14 @@ function render(r, fromHistory){
   const contactRows = [['Name', kc.name], ['Email', kc.email], ['Phone', kc.phone], ['Location', kc.location], ['LinkedIn', kc.linkedin]]
     .filter(x => x[1]);
   const answerRows = (kit.answers || []).filter(a => a && a.text).map(a => [a.label, a.text]);
-  const kitRows = [...contactRows, ...answerRows];
+  // honest paste-ready visa answers, straight from her situation
+  const lv = r.location_visa || {};
+  const visaRows = [
+    lv.authorized_answer ? ['Are you authorized to work here?', lv.authorized_answer] : null,
+    lv.sponsorship_answer ? ['Do you need sponsorship?', lv.sponsorship_answer] : null,
+    lv.eor_note ? ['If they ask how to employ you', lv.eor_note] : null,
+  ].filter(Boolean);
+  const kitRows = [...contactRows, ...answerRows, ...visaRows];
   $('outKit').innerHTML = kitRows.length
     ? kitRows.map((x, i) =>
         '<li><span style="flex:1;min-width:0"><b>'+esc(x[0])+'</b><br><span class="muted" style="word-wrap:break-word">'+esc(x[1])+'</span></span>'+
@@ -628,7 +719,7 @@ function render(r, fromHistory){
   $('outKit')._data = kitRows;
 
   $('outQuestions').innerHTML = (r.screening_questions||[]).map(x =>
-    '<div class="chg"><b>❓ '+esc(x.q)+'</b><span>'+esc(x.tip)+'</span></div>').join('')
+    '<div class="chg"><b>❓ '+esc(x.q)+'</b><span>'+esc(x.answer || x.tip)+'</span></div>').join('')
     || '<p class="muted">No predicted questions for this one.</p>';
 
   const loc = r.location_fit || {};
@@ -640,7 +731,9 @@ function render(r, fromHistory){
       : 'Location: check before spending time';
     $('locationBanner').style.borderColor = loc.level === 'good' ? 'rgba(31,169,113,.45)' : loc.level === 'blocked' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
     $('locationBanner').style.background = loc.level === 'good' ? 'rgba(31,169,113,.08)' : loc.level === 'blocked' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
-    $('locationBanner').innerHTML = '<b>' + icon + ' ' + head + '</b><br>' + esc(loc.note);
+    const lvVerdict = (r.location_visa && r.location_visa.verdict) || '';
+    $('locationBanner').innerHTML = '<b>' + icon + ' ' + head + '</b><br>' + esc(loc.note) +
+      (lvVerdict && lvVerdict !== loc.note ? '<br><span class="muted">' + esc(lvVerdict) + '</span>' : '');
   }
 
   const scam = r.scam_risk || {};
