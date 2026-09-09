@@ -1006,6 +1006,11 @@ async function tailor(body, env, cors) {
       model,
       max_tokens: maxTokens,
       stream: !!stream,
+      // Sonnet 5 runs adaptive extended thinking BY DEFAULT when this param is
+      // omitted — invisible and slow (tens of seconds before the first word).
+      // This is structured rewriting, not deep reasoning: turn it off.
+      // (Fallback model claude-sonnet-4-5 predates the param style — omit there.)
+      ...(model === 'claude-sonnet-4-5' ? {} : { thinking: { type: 'disabled' } }),
       // cache_control: her burst of tailors reuses the cached system prompt →
       // faster time-to-first-word and cheaper calls.
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
