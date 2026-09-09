@@ -106,7 +106,8 @@ ul.checks li:last-child{border-bottom:0}
 #tutCard{position:fixed;left:12px;right:12px;bottom:18px;max-width:560px;margin:0 auto;background:var(--card);border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.45);padding:20px;z-index:99}
 #tutCard h3{margin:0 0 6px;font-size:1.05rem}
 #tutCard p{margin:0 0 14px;color:var(--muted);font-size:.92rem}
-.tut-target{position:relative;z-index:91;pointer-events:none;box-shadow:0 0 0 3px var(--brand),0 4px 30px rgba(124,92,255,.45)!important;border-radius:var(--radius)}
+.tut-target{position:relative;z-index:91;pointer-events:none;background:var(--card)!important;box-shadow:0 0 0 3px var(--brand),0 10px 40px rgba(0,0,0,.4)!important;border-radius:var(--radius)}
+#tut{touch-action:none}
 .tut-dots{display:flex;gap:6px;margin-top:12px}
 .tut-dots span{width:8px;height:8px;border-radius:50%;background:var(--line)}
 .tut-dots span.on{background:var(--brand)}
@@ -215,7 +216,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 </section>
 
 <!-- STEP 2: pick a job -->
-<section class="card">
+<section class="card" id="jobCard">
 <h2><span class="step">2</span> Pick a job</h2>
 <p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the day you see it — fresh postings convert best, and a tailored resume interviews at about twice the rate of an untailored one.</p>
 <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
@@ -570,7 +571,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v21';
 document.getElementById('verTag').textContent = APP_VERSION;
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch {} }
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
@@ -1699,7 +1700,7 @@ const TUT_STEPS = [
 {t:'Welcome! 👋', x:'This tool rewrites your resume for each job — honestly, using only what you really did — and helps you apply, follow up, and track everything. Two minutes to show you around.', b:'Show me'},
 {t:'Step 1 — your resume, once', x:'Paste your resume here (or upload the file). It stays saved on this phone, so you only do this one time. You can keep up to 5 versions later.', el:'resumeCard', b:'Next'},
 {t:'Your profile', x:'Tap “Profile” inside step 1 and check it once: your country, languages, and your standard answers. Every job check uses this — it’s what keeps everything honest and correct for you.', el:'resumeCard', b:'Next'},
-{t:'Step 2 — pick a job', x:'Fresh remote jobs picked for you, best first. ⚡ means apply today. 🌍 means it works from Kosovo. Tap any job and the rewrite starts by itself — or paste any job link in the box.', el:'feedList', b:'Next'},
+{t:'Step 2 — pick a job', x:'Fresh remote jobs picked for you, best first. ⚡ means apply today. 🌍 means it works from Kosovo. Tap any job and the rewrite starts by itself — or paste any job link in the box.', el:'jobCard', b:'Next'},
 {t:'What you get', x:'A rewritten resume (watch it type!), a match score, any deal-breakers up top, ready-to-copy form answers, a cover letter, and interview answers. Copy, download as Word, done.', b:'Next'},
 {t:'After you apply', x:'Tap “✅ I applied” on the result. The tool then reminds you at day 3, 7 and 14 with emails already written — and the 📸 Proof button sends Parker a note that you applied. That’s it. Good luck! 🍀', b:'Let’s go ✂️'},
 ];
@@ -1709,7 +1710,7 @@ tutStep = i;
 const st = TUT_STEPS[i];
 if (tutTarget) tutTarget.classList.remove('tut-target');
 tutTarget = st.el ? $(st.el) : null;
-if (tutTarget) { tutTarget.classList.add('tut-target'); try{ tutTarget.scrollIntoView({block:'start'}); window.scrollBy(0,-70); }catch{} }
+if (tutTarget) { tutTarget.classList.add('tut-target'); try{ const y = tutTarget.getBoundingClientRect().top + window.scrollY - 12; window.scrollTo({top: Math.max(0, y)}); }catch{} }
 else window.scrollTo(0,0);
 $('tutTitle').textContent = st.t;
 $('tutText').textContent = st.x;
@@ -1719,14 +1720,12 @@ $('tutDots').innerHTML = TUT_STEPS.map((_,k)=>'<span'+(k===i?' class="on"':'')+'
 function tutStart(){
 $('tut').style.display = 'block';
 $('tutCard').style.display = 'block';
-document.body.style.overflow = 'hidden';
 tutShow(0);
 }
 function tutEnd(){
 if (tutTarget) tutTarget.classList.remove('tut-target');
 $('tut').style.display = 'none';
 $('tutCard').style.display = 'none';
-document.body.style.overflow = '';
 store.write('rt_tutorialDone', '1');
 window.scrollTo({top:0});
 }
