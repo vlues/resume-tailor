@@ -13,12 +13,12 @@
 <meta name="description" content="Paste a job link, get a resume tailored to it — ATS-safe, honest, with a match score.">
 <style>
 :root{
-  --bg:#f6f5fb; --card:#ffffff; --ink:#211f33; --muted:#6f6c85;
-  --brand:#7c5cff; --brand-dark:#5b3df0; --good:#1fa971; --warn:#e08a00; --bad:#d64550;
-  --line:#e7e5f2; --radius:18px; --shadow:0 4px 20px rgba(80,60,180,.08);
+--bg:#f6f5fb; --card:#ffffff; --ink:#211f33; --muted:#6f6c85;
+--brand:#7c5cff; --brand-dark:#5b3df0; --good:#1fa971; --warn:#e08a00; --bad:#d64550;
+--line:#e7e5f2; --radius:18px; --shadow:0 4px 20px rgba(80,60,180,.08);
 }
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#15131f; --card:#1f1c2e; --ink:#f0eefb; --muted:#a29ec2; --line:#312d47; --shadow:0 4px 20px rgba(0,0,0,.35); }
+:root{ --bg:#15131f; --card:#1f1c2e; --ink:#f0eefb; --muted:#a29ec2; --line:#312d47; --shadow:0 4px 20px rgba(0,0,0,.35); }
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:60px}
@@ -44,8 +44,8 @@ a.btn{display:inline-block;text-decoration:none}
 .card .hint{color:var(--muted);font-size:.88rem;margin:0 0 12px}
 .step{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-size:.85rem;font-weight:700;flex:none}
 textarea,input[type=text],input[type=url],input[type=password]{
-  width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font:16px/1.45 inherit;
-  background:var(--bg);color:var(--ink);outline:none;
+width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font:16px/1.45 inherit;
+background:var(--bg);color:var(--ink);outline:none;
 }
 textarea:focus,input:focus{border-color:var(--brand)}
 select.sel{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 10px;font:16px inherit;background:var(--bg);color:var(--ink)}
@@ -59,8 +59,8 @@ button{font:inherit;cursor:pointer;border:0;border-radius:12px;-webkit-tap-highl
 .btn.small{padding:8px 12px;font-size:.87rem}
 .btn.good{border-color:var(--good);color:var(--good)}
 .primary{
-  display:block;width:100%;margin-top:18px;padding:17px;border-radius:16px;font-size:1.15rem;font-weight:800;color:#fff;
-  background:linear-gradient(135deg,var(--brand),var(--brand-dark));box-shadow:0 6px 18px rgba(124,92,255,.4);
+display:block;width:100%;margin-top:18px;padding:17px;border-radius:16px;font-size:1.15rem;font-weight:800;color:#fff;
+background:linear-gradient(135deg,var(--brand),var(--brand-dark));box-shadow:0 6px 18px rgba(124,92,255,.4);
 }
 .primary:disabled{opacity:.55;box-shadow:none}
 .saved-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(31,169,113,.12);color:var(--good);font-weight:700;font-size:.85rem;border-radius:999px;padding:5px 12px}
@@ -68,6 +68,10 @@ button{font:inherit;cursor:pointer;border:0;border-radius:12px;-webkit-tap-highl
 .error{background:rgba(214,69,80,.1);border:1.5px solid rgba(214,69,80,.4);color:var(--bad);border-radius:12px;padding:12px 14px;margin-top:14px;font-size:.93rem;display:none}
 .spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-4px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){
+*{animation:none!important;transition:none!important}
+html{scroll-behavior:auto}
+}
 #loadingMsg{text-align:center;color:var(--muted);margin-top:12px;min-height:1.4em;font-size:.92rem}
 /* results */
 .score-wrap{display:flex;align-items:center;gap:18px}
@@ -104,245 +108,245 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 </head>
 <body>
 <header>
-  <h1>Resume Tailor ✂️</h1>
-  <p>Tap a job. Get your resume rewritten for it — ready to send.</p>
+<h1>Resume Tailor ✂️</h1>
+<p>Tap a job. Get your resume rewritten for it — ready to send.</p>
 </header>
 
 <div class="wrap">
 
-  <!-- due today -->
-  <section class="card" id="dueCard" style="display:none;border-color:rgba(224,138,0,.45)">
-    <h2>⏰ Due today</h2>
-    <p class="hint">Each email is already written — tap it, add the address, send. Nothing is ever sent for you.</p>
-    <div id="dueList"></div>
-  </section>
+<!-- due today -->
+<section class="card" id="dueCard" style="display:none;border-color:rgba(224,138,0,.45)">
+<h2>⏰ Due today</h2>
+<p class="hint">Each email is already written — tap it, add the address, send. Nothing is ever sent for you.</p>
+<div id="dueList"></div>
+</section>
 
-  <!-- STEP 1: resume -->
-  <section class="card" id="resumeCard">
-    <div id="resumeCollapsed" style="display:none">
-      <button class="slim" id="editResumeBtn"><span class="tickball">✓</span> <span id="savedLabel">Resume saved on this phone</span> <span class="lnk">Change</span></button>
-    </div>
-    <div class="tabs" id="baseChips" style="display:none;margin:10px -18px 0;padding:0 18px 4px"></div>
-    <div id="resumeOpen">
-      <h2><span class="step">1</span> Your resume — once</h2>
-      <p class="hint">Paste it or upload the file. It stays saved on this phone. You can keep up to 5 versions (support, sales, hospitality…) — the tool tells you which one fits a job best.</p>
-      <input type="text" id="baseName" placeholder="Name this version (e.g. Support)" style="margin-bottom:8px">
-      <textarea id="resumeText" placeholder="Paste your whole resume here…"></textarea>
-      <div class="row">
-        <label class="btn small" style="display:inline-flex;align-items:center;gap:6px">
-          📄 Upload file
-          <input type="file" id="resumeFile" accept=".docx,.pdf,.txt,.rtf" style="display:none">
-        </label>
-        <button class="btn small good" id="saveResumeBtn">✓ Done</button>
-      </div>
-      <p class="muted" id="fileStatus"></p>
-    </div>
-    <details class="adv" id="profileDetails">
-      <summary>🌍 Profile — your situation and stored answers (tap to edit)</summary>
-      <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
-      <p class="muted">Your story in your words. The fields below sharpen it — all of it is used to check each job’s rules and pre-fill answers. Never written onto the resume.</p>
-      <div class="row" style="align-items:flex-end">
-        <label style="flex:1;min-width:130px"><span class="muted">Where you live now</span>
-          <input type="text" id="setCountry" placeholder="Kosovo"></label>
-        <label style="flex:1;min-width:130px"><span class="muted">Where you’re headed</span>
-          <input type="text" id="setTargets" placeholder="Spain (digital-nomad visa)"></label>
-      </div>
-      <div class="row" style="align-items:flex-end">
-        <label style="flex:1;min-width:130px"><span class="muted">Visa income need (€/month gross)</span>
-          <input type="text" id="setDnv" inputmode="numeric" placeholder="2849"></label>
-        <label style="flex:1;min-width:130px"><span class="muted">Your salary floor (€/month gross)</span>
-          <input type="text" id="setFloor" inputmode="numeric" placeholder="e.g. 1500"></label>
-      </div>
-      <p class="muted">€2,849 = Spain digital-nomad visa minimum, checked 9 Sep 2026. Change it if the rules change.</p>
-      <div class="row" style="align-items:flex-end">
-        <label style="flex:1;min-width:130px"><span class="muted">Remote</span>
-          <select id="setRemote" class="sel">
-            <option value="remote only">Remote only</option>
-            <option value="hybrid OK">Hybrid OK</option>
-          </select></label>
-        <label style="flex:1;min-width:130px"><span class="muted">“Low odds” below (% of requirements)</span>
-          <input type="text" id="setFit" inputmode="numeric" placeholder="60"></label>
-      </div>
-      <div class="row" style="align-items:flex-end">
-        <label style="flex:1;min-width:130px"><span class="muted">Languages, with level (A1–C2)</span>
-          <input type="text" id="setLangs" placeholder="Albanian native, English C1"></label>
-        <label style="flex:1;min-width:130px"><span class="muted">Write answers in…</span>
-          <select id="setOutLang" class="sel">
-            <option value="">The job posting’s language</option>
-            <option value="English">Always English</option>
-            <option value="Spanish">Always Spanish</option>
-            <option value="German">Always German</option>
-            <option value="Albanian">Always Albanian</option>
-          </select></label>
-      </div>
-      <p class="hint" style="margin:14px 0 4px">✅ Stored answers — dropped straight into screening answers</p>
-      <div class="row" style="align-items:flex-end">
-        <label style="flex:1;min-width:130px"><span class="muted">“Are you authorized to work…?”</span>
-          <input type="text" id="setAuth" placeholder="your honest standard answer"></label>
-        <label style="flex:1;min-width:130px"><span class="muted">“Do you need sponsorship?”</span>
-          <input type="text" id="setSponsor" placeholder="your honest standard answer"></label>
-      </div>
-      <div class="row" style="align-items:flex-end">
-        <label style="flex:1;min-width:130px"><span class="muted">Notice period / start date</span>
-          <input type="text" id="setNotice" placeholder="e.g. can start in 2 weeks"></label>
-        <label style="flex:1;min-width:130px"><span class="muted">Availability / hours</span>
-          <input type="text" id="setAvail" placeholder="e.g. full-time, CET hours"></label>
-      </div>
-      <p class="hint" style="margin:14px 0 4px">🔁 Job titles that count as your kind of work</p>
-      <input type="text" id="setSynonyms" placeholder="support, success, helpdesk, customer care…">
-      <p class="hint" style="margin:14px 0 4px">🗣️ How you write (one time, optional)</p>
-      <textarea id="voiceText" style="min-height:80px" placeholder="Paste 3–5 sentences you really wrote — a normal email is perfect. Your letters will be written in this voice instead of AI-speak."></textarea>
-    </details>
-  </section>
+<!-- STEP 1: resume -->
+<section class="card" id="resumeCard">
+<div id="resumeCollapsed" style="display:none">
+<button class="slim" id="editResumeBtn"><span class="tickball">✓</span> <span id="savedLabel">Resume saved on this phone</span> <span class="lnk">Change</span></button>
+</div>
+<div class="tabs" id="baseChips" style="display:none;margin:10px -18px 0;padding:0 18px 4px"></div>
+<div id="resumeOpen">
+<h2><span class="step">1</span> Your resume — once</h2>
+<p class="hint">Paste it or upload the file. It stays saved on this phone. You can keep up to 5 versions (support, sales, hospitality…) — the tool tells you which one fits a job best.</p>
+<input type="text" id="baseName" placeholder="Name this version (e.g. Support)" style="margin-bottom:8px">
+<textarea id="resumeText" placeholder="Paste your whole resume here…"></textarea>
+<div class="row">
+<label class="btn small" style="display:inline-flex;align-items:center;gap:6px">
+📄 Upload file
+<input type="file" id="resumeFile" accept=".docx,.pdf,.txt,.rtf" style="display:none">
+</label>
+<button class="btn small good" id="saveResumeBtn">✓ Done</button>
+</div>
+<p class="muted" id="fileStatus"></p>
+</div>
+<details class="adv" id="profileDetails">
+<summary>🌍 Profile — your situation and stored answers (tap to edit)</summary>
+<textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
+<p class="muted">Your story in your words. The fields below sharpen it — all of it is used to check each job’s rules and pre-fill answers. Never written onto the resume.</p>
+<div class="row" style="align-items:flex-end">
+<label style="flex:1;min-width:130px"><span class="muted">Where you live now</span>
+<input type="text" id="setCountry" placeholder="Kosovo"></label>
+<label style="flex:1;min-width:130px"><span class="muted">Where you’re headed</span>
+<input type="text" id="setTargets" placeholder="Spain (digital-nomad visa)"></label>
+</div>
+<div class="row" style="align-items:flex-end">
+<label style="flex:1;min-width:130px"><span class="muted">Visa income need (€/month gross)</span>
+<input type="text" id="setDnv" inputmode="numeric" placeholder="2849"></label>
+<label style="flex:1;min-width:130px"><span class="muted">Your salary floor (€/month gross)</span>
+<input type="text" id="setFloor" inputmode="numeric" placeholder="e.g. 1500"></label>
+</div>
+<p class="muted">€2,849 = Spain digital-nomad visa minimum, checked 9 Sep 2026. Change it if the rules change.</p>
+<div class="row" style="align-items:flex-end">
+<label style="flex:1;min-width:130px"><span class="muted">Remote</span>
+<select id="setRemote" class="sel">
+<option value="remote only">Remote only</option>
+<option value="hybrid OK">Hybrid OK</option>
+</select></label>
+<label style="flex:1;min-width:130px"><span class="muted">“Low odds” below (% of requirements)</span>
+<input type="text" id="setFit" inputmode="numeric" placeholder="60"></label>
+</div>
+<div class="row" style="align-items:flex-end">
+<label style="flex:1;min-width:130px"><span class="muted">Languages, with level (A1–C2)</span>
+<input type="text" id="setLangs" placeholder="Albanian native, English C1"></label>
+<label style="flex:1;min-width:130px"><span class="muted">Write answers in…</span>
+<select id="setOutLang" class="sel">
+<option value="">The job posting’s language</option>
+<option value="English">Always English</option>
+<option value="Spanish">Always Spanish</option>
+<option value="German">Always German</option>
+<option value="Albanian">Always Albanian</option>
+</select></label>
+</div>
+<p class="hint" style="margin:14px 0 4px">✅ Stored answers — dropped straight into screening answers</p>
+<div class="row" style="align-items:flex-end">
+<label style="flex:1;min-width:130px"><span class="muted">“Are you authorized to work…?”</span>
+<input type="text" id="setAuth" placeholder="your honest standard answer"></label>
+<label style="flex:1;min-width:130px"><span class="muted">“Do you need sponsorship?”</span>
+<input type="text" id="setSponsor" placeholder="your honest standard answer"></label>
+</div>
+<div class="row" style="align-items:flex-end">
+<label style="flex:1;min-width:130px"><span class="muted">Notice period / start date</span>
+<input type="text" id="setNotice" placeholder="e.g. can start in 2 weeks"></label>
+<label style="flex:1;min-width:130px"><span class="muted">Availability / hours</span>
+<input type="text" id="setAvail" placeholder="e.g. full-time, CET hours"></label>
+</div>
+<p class="hint" style="margin:14px 0 4px">🔁 Job titles that count as your kind of work</p>
+<input type="text" id="setSynonyms" placeholder="support, success, helpdesk, customer care…">
+<p class="hint" style="margin:14px 0 4px">🗣️ How you write (one time, optional)</p>
+<textarea id="voiceText" style="min-height:80px" placeholder="Paste 3–5 sentences you really wrote — a normal email is perfect. Your letters will be written in this voice instead of AI-speak."></textarea>
+</details>
+</section>
 
-  <!-- STEP 2: pick a job -->
-  <section class="card">
-    <h2><span class="step">2</span> Pick a job</h2>
-    <p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the day you see it — fresh postings convert best, and a tailored resume interviews at about twice the rate of an untailored one.</p>
-    <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
-    <div class="row" style="margin-top:4px"><button class="btn small" id="feedRefresh">🔄 More jobs</button></div>
+<!-- STEP 2: pick a job -->
+<section class="card">
+<h2><span class="step">2</span> Pick a job</h2>
+<p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the day you see it — fresh postings convert best, and a tailored resume interviews at about twice the rate of an untailored one.</p>
+<div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
+<div class="row" style="margin-top:4px"><button class="btn small" id="feedRefresh">🔄 More jobs</button></div>
 
-    <div class="or">or a job you found yourself</div>
-    <textarea id="jobInput" style="min-height:74px" placeholder="Paste the job link (or the whole job description) here" autocapitalize="off"></textarea>
-    <button class="primary" id="tailorBtn" style="margin-top:12px">✂️ Tailor my resume</button>
-  </section>
+<div class="or">or a job you found yourself</div>
+<textarea id="jobInput" style="min-height:74px" placeholder="Paste the job link (or the whole job description) here" autocapitalize="off"></textarea>
+<button class="primary" id="tailorBtn" style="margin-top:12px">✂️ Tailor my resume</button>
+</section>
 
-  <!-- access code (only shows if the API requires one) -->
-  <section class="card" id="codeCard" style="display:none">
-    <h2>🔑 Access code</h2>
-    <p class="hint">One-time — Parker will give you this.</p>
-    <input type="password" id="accessCode" placeholder="Access code" autocomplete="off">
-  </section>
+<!-- access code (only shows if the API requires one) -->
+<section class="card" id="codeCard" style="display:none">
+<h2>🔑 Access code</h2>
+<p class="hint">One-time — Parker will give you this.</p>
+<input type="password" id="accessCode" placeholder="Access code" autocomplete="off">
+</section>
 
-  <div id="loadingMsg"></div>
-  <div class="error" id="errBox"></div>
+<div id="loadingMsg"></div>
+<div class="error" id="errBox"></div>
 
-  <!-- RESULTS -->
-  <section class="card" id="results" style="display:none">
-    <h2 id="resultTitle">🎯 Tailored for this job</h2>
-    <p class="hint" id="resultSub"></p>
-    <div class="row" style="margin:0 0 12px">
-      <button class="btn small" id="appliedBtn">✅ I applied — remind me to follow up</button>
-      <a class="btn small" id="openJobBtn" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none">🔗 Open job page</a>
-    </div>
-    <div id="resultFu" style="margin:-4px 0 12px"></div>
-    <div class="miss" id="knockoutBanner" style="display:none"></div>
-    <div class="miss" id="fitBanner" style="display:none"></div>
-    <div class="score-wrap">
-      <div class="ring">
-        <svg width="110" height="110" viewBox="0 0 110 110">
-          <circle cx="55" cy="55" r="48" fill="none" stroke="var(--line)" stroke-width="10"/>
-          <circle id="ringArc" cx="55" cy="55" r="48" fill="none" stroke="var(--good)" stroke-width="10"
-                  stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
-        </svg>
-        <div class="num"><span id="scoreNum">–</span><small>match</small></div>
-      </div>
-      <div class="delta">
-        <div>Before tailoring: <b id="scoreBefore" style="color:var(--muted)">–</b></div>
-        <div>After tailoring: <b id="scoreAfter">–</b></div>
-        <p class="muted" id="scoreWhy" style="margin:8px 0 0"></p>
-        <p class="muted" id="outWhy" style="margin:8px 0 0"></p>
-      </div>
-    </div>
-    <div class="miss" id="dnvBanner" style="display:none"></div>
-    <div class="miss" id="slopBanner" style="display:none"></div>
-    <div class="miss" id="baseSuggest" style="display:none;border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"></div>
-    <div id="outAsk"></div>
+<!-- RESULTS -->
+<section class="card" id="results" style="display:none">
+<h2 id="resultTitle">🎯 Tailored for this job</h2>
+<p class="hint" id="resultSub"></p>
+<div class="row" style="margin:0 0 12px">
+<button class="btn small" id="appliedBtn">✅ I applied — remind me to follow up</button>
+<a class="btn small" id="openJobBtn" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none">🔗 Open job page</a>
+</div>
+<div id="resultFu" style="margin:-4px 0 12px"></div>
+<div class="miss" id="knockoutBanner" style="display:none"></div>
+<div class="miss" id="fitBanner" style="display:none"></div>
+<div class="score-wrap">
+<div class="ring">
+<svg width="110" height="110" viewBox="0 0 110 110">
+<circle cx="55" cy="55" r="48" fill="none" stroke="var(--line)" stroke-width="10"/>
+<circle id="ringArc" cx="55" cy="55" r="48" fill="none" stroke="var(--good)" stroke-width="10"
+stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
+</svg>
+<div class="num"><span id="scoreNum">–</span><small>match</small></div>
+</div>
+<div class="delta">
+<div>Before tailoring: <b id="scoreBefore" style="color:var(--muted)">–</b></div>
+<div>After tailoring: <b id="scoreAfter">–</b></div>
+<p class="muted" id="scoreWhy" style="margin:8px 0 0"></p>
+<p class="muted" id="outWhy" style="margin:8px 0 0"></p>
+</div>
+</div>
+<div class="miss" id="dnvBanner" style="display:none"></div>
+<div class="miss" id="slopBanner" style="display:none"></div>
+<div class="miss" id="baseSuggest" style="display:none;border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"></div>
+<div id="outAsk"></div>
 
-    <div class="tabs" id="tabs">
-      <button class="tab on" data-pane="paneResume">📋 Resume</button>
-      <button class="tab" data-pane="paneKit">⚡ Apply kit</button>
-      <button class="tab" data-pane="paneChanges">✨ What changed</button>
-      <button class="tab" data-pane="paneAts">🤖 ATS check</button>
-      <button class="tab" data-pane="paneInterview">🎤 Interview</button>
-      <button class="tab" data-pane="paneNote">💌 Messages</button>
-    </div>
+<div class="tabs" id="tabs">
+<button class="tab on" data-pane="paneResume">📋 Resume</button>
+<button class="tab" data-pane="paneKit">⚡ Apply kit</button>
+<button class="tab" data-pane="paneChanges">✨ What changed</button>
+<button class="tab" data-pane="paneAts">🤖 ATS check</button>
+<button class="tab" data-pane="paneInterview">🎤 Interview</button>
+<button class="tab" data-pane="paneNote">💌 Messages</button>
+</div>
 
-    <div class="miss" id="locationBanner" style="display:none"></div>
-    <div class="miss" id="scamBanner" style="display:none;border-color:rgba(214,69,80,.5);background:rgba(214,69,80,.08)"></div>
+<div class="miss" id="locationBanner" style="display:none"></div>
+<div class="miss" id="scamBanner" style="display:none;border-color:rgba(214,69,80,.5);background:rgba(214,69,80,.08)"></div>
 
-    <div class="pane on" id="paneResume">
-      <div class="row" style="margin:0 0 10px">
-        <button class="btn small good" id="dlWordBtn">⬇️ Word file</button>
-        <button class="btn small" id="copyResumeBtn">📋 Copy</button>
-      </div>
-      <pre class="resume" id="outResume"></pre>
-      <p class="muted">Tip: paste into Google Docs / Word, quick look for anything to tweak, then upload as .docx or PDF.</p>
-    </div>
+<div class="pane on" id="paneResume">
+<div class="row" style="margin:0 0 10px">
+<button class="btn small good" id="dlWordBtn">⬇️ Word file</button>
+<button class="btn small" id="copyResumeBtn">📋 Copy</button>
+</div>
+<pre class="resume" id="outResume"></pre>
+<p class="muted">Tip: paste into Google Docs / Word, quick look for anything to tweak, then upload as .docx or PDF.</p>
+</div>
 
-    <div class="pane" id="paneChanges">
-      <div id="outDiff"></div>
-      <div id="outTips"></div>
-      <div id="outChanges"></div>
-      <div id="outKeywords" style="margin-top:14px"></div>
-      <div id="outMissing" style="margin-top:14px"></div>
-      <div id="outGaps" style="margin-top:14px"></div>
-    </div>
+<div class="pane" id="paneChanges">
+<div id="outDiff"></div>
+<div id="outTips"></div>
+<div id="outChanges"></div>
+<div id="outKeywords" style="margin-top:14px"></div>
+<div id="outMissing" style="margin-top:14px"></div>
+<div id="outGaps" style="margin-top:14px"></div>
+</div>
 
-    <div class="pane" id="paneAts">
-      <ul class="checks" id="outAts"></ul>
-    </div>
+<div class="pane" id="paneAts">
+<ul class="checks" id="outAts"></ul>
+</div>
 
-    <div class="pane" id="paneKit">
-      <p class="hint">The form, pre-answered — in the order they ask. Tap Copy, paste, next field.</p>
-      <ul class="checks" id="outKit"></ul>
-      <p class="muted">Resume is under 📋, cover letter under 💌 — copy those from their tabs when the form asks.</p>
-    </div>
+<div class="pane" id="paneKit">
+<p class="hint">The form, pre-answered — in the order they ask. Tap Copy, paste, next field.</p>
+<ul class="checks" id="outKit"></ul>
+<p class="muted">Resume is under 📋, cover letter under 💌 — copy those from their tabs when the form asks.</p>
+</div>
 
-    <div class="pane" id="paneInterview">
-      <p class="hint">What they’ll likely ask for this job — and how to answer with <em>your</em> experience.</p>
-      <div id="outQuestions"></div>
-      <p class="muted" style="margin-top:14px">Remote-interview basics: quiet spot, camera at eye level, headset in, and have a 30-second “tell me about yourself” ready that ends with why you want <em>this</em> job.</p>
-    </div>
+<div class="pane" id="paneInterview">
+<p class="hint">What they’ll likely ask for this job — and how to answer with <em>your</em> experience.</p>
+<div id="outQuestions"></div>
+<p class="muted" style="margin-top:14px">Remote-interview basics: quiet spot, camera at eye level, headset in, and have a 30-second “tell me about yourself” ready that ends with why you want <em>this</em> job.</p>
+</div>
 
-    <div class="pane" id="paneNote">
-      <p class="hint">💬 <b>Quick note</b> — for the “anything else?” box on applications:</p>
-      <div class="copy-note" id="outNote"></div>
-      <div class="row"><button class="btn small good" id="copyNoteBtn">📋 Copy note</button></div>
-      <p class="hint" style="margin-top:18px">📄 <b>Full cover letter</b> — when the application asks for one:</p>
-      <div class="copy-note" id="outLetter"></div>
-      <div class="row"><button class="btn small good" id="copyLetterBtn">📋 Copy cover letter</button></div>
-      <p class="hint" style="margin-top:18px">⏰ <b>Follow-up</b> — send this if you haven’t heard back in 5–7 days:</p>
-      <div class="copy-note" id="outFollowUp"></div>
-      <div class="row"><button class="btn small good" id="copyFollowUpBtn">📋 Copy follow-up</button></div>
-    </div>
-  </section>
+<div class="pane" id="paneNote">
+<p class="hint">💬 <b>Quick note</b> — for the “anything else?” box on applications:</p>
+<div class="copy-note" id="outNote"></div>
+<div class="row"><button class="btn small good" id="copyNoteBtn">📋 Copy note</button></div>
+<p class="hint" style="margin-top:18px">📄 <b>Full cover letter</b> — when the application asks for one:</p>
+<div class="copy-note" id="outLetter"></div>
+<div class="row"><button class="btn small good" id="copyLetterBtn">📋 Copy cover letter</button></div>
+<p class="hint" style="margin-top:18px">⏰ <b>Follow-up</b> — send this if you haven’t heard back in 5–7 days:</p>
+<div class="copy-note" id="outFollowUp"></div>
+<div class="row"><button class="btn small good" id="copyFollowUpBtn">📋 Copy follow-up</button></div>
+</div>
+</section>
 
-  <!-- visa clock -->
-  <section class="card" id="dnvClockCard" style="display:none;border-color:rgba(31,169,113,.45)">
-    <h2>🇪🇸 Visa clock</h2>
-    <div id="dnvClockBody"></div>
-  </section>
+<!-- visa clock -->
+<section class="card" id="dnvClockCard" style="display:none;border-color:rgba(31,169,113,.45)">
+<h2>🇪🇸 Visa clock</h2>
+<div id="dnvClockBody"></div>
+</section>
 
-  <!-- applications -->
-  <section class="card" id="historyCard" style="display:none">
-    <h2>🗂 Your applications</h2>
-    <p class="hint">Tap ✅ after you apply. Reminders show at the top of this page: hiring-manager email at day 3, follow-ups at day 7 and 14 — the 🔔 buttons put them on your phone’s calendar too.</p>
-    <div id="historyList"></div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn small" id="csvBtn">⬇️ Export CSV</button>
-      <span class="muted" id="syncStatus" style="align-self:center"></span>
-    </div>
-  </section>
+<!-- applications -->
+<section class="card" id="historyCard" style="display:none">
+<h2>🗂 Your applications</h2>
+<p class="hint">Tap ✅ after you apply. Reminders show at the top of this page: hiring-manager email at day 3, follow-ups at day 7 and 14 — the 🔔 buttons put them on your phone’s calendar too.</p>
+<div id="historyList"></div>
+<div class="row" style="margin-top:10px">
+<button class="btn small" id="csvBtn">⬇️ Export CSV</button>
+<span class="muted" id="syncStatus" style="align-self:center"></span>
+</div>
+</section>
 
-  <!-- stats -->
-  <section class="card" id="statsCard" style="display:none">
-    <h2>📈 Your numbers</h2>
-    <p class="hint">Real data from your own applications, next to what the research says is normal.</p>
-    <div id="paceGuard"></div>
-    <div id="statsBody"></div>
-    <div id="whatToChange"></div>
-    <details class="adv"><summary>Where the benchmarks come from</summary>
-      <p class="muted" style="margin-top:8px">
-        Tailored 4.23% vs untailored 2.07% interview rate; 9.25% at 11–20 applications/mo vs 2.58% at 100+; median 108 days search-to-offer — Huntr, Q1 2026 (139,927 applications).
-        Follow-up welcome within 1–2 weeks — Robert Half/Accountemps, 2017.
-        Typical employer time-to-fill ≈ 42 days — SHRM Human Capital Benchmarking (2016; unchanged in SHRM’s 2025 data).
-        Full list with links is in the project README, checked 9 Sep 2026.
-      </p>
-    </details>
-  </section>
+<!-- stats -->
+<section class="card" id="statsCard" style="display:none">
+<h2>📈 Your numbers</h2>
+<p class="hint">Real data from your own applications, next to what the research says is normal.</p>
+<div id="paceGuard"></div>
+<div id="statsBody"></div>
+<div id="whatToChange"></div>
+<details class="adv"><summary>Where the benchmarks come from</summary>
+<p class="muted" style="margin-top:8px">
+Tailored 4.23% vs untailored 2.07% interview rate; 9.25% at 11–20 applications/mo vs 2.58% at 100+; median 108 days search-to-offer — Huntr, Q1 2026 (139,927 applications).
+Follow-up welcome within 1–2 weeks — Robert Half/Accountemps, 2017.
+Typical employer time-to-fill ≈ 42 days — SHRM Human Capital Benchmarking (2016; unchanged in SHRM’s 2025 data).
+Full list with links is in the project README, checked 9 Sep 2026.
+</p>
+</details>
+</section>
 
-  <footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
+<footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -350,922 +354,949 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 const API_BASE = 'https://resume-tailor-api.streamedmusics.workers.dev';
 const $ = id => document.getElementById(id);
 const store = {
-  get k(){ try{ return localStorage }catch{ return null } },
-  read(key){ try{ return localStorage.getItem(key)||'' }catch{ return '' } },
-  write(key,v){ try{ localStorage.setItem(key,v) }catch{} },
+get k(){ try{ return localStorage }catch{ return null } },
+read(key){ try{ return localStorage.getItem(key)||'' }catch{ return '' } },
+write(key,v){ try{ localStorage.setItem(key,v) }catch{} },
 };
 
 // ---------- base resumes (up to 5; rt_resume mirrors the active one) ----------
 function readBases(){
-  try { const b = JSON.parse(store.read('rt_bases')||'null'); if (Array.isArray(b) && b.length) return b; } catch {}
-  const legacy = store.read('rt_resume');
-  return legacy.length > 100 ? [{name:'Main', text:legacy}] : [];
+try { const b = JSON.parse(store.read('rt_bases')||'null'); if (Array.isArray(b) && b.length) return b; } catch {}
+const legacy = store.read('rt_resume');
+return legacy.length > 100 ? [{name:'Main', text:legacy}] : [];
 }
 let baseActive = Math.max(0, Number(store.read('rt_baseActive')) || 0);
 function writeBases(b){
-  store.write('rt_bases', JSON.stringify(b.slice(0,5)));
-  const a = b[Math.min(baseActive, b.length-1)];
-  store.write('rt_resume', a ? a.text : '');
+store.write('rt_bases', JSON.stringify(b.slice(0,5)));
+const a = b[Math.min(baseActive, b.length-1)];
+store.write('rt_resume', a ? a.text : '');
 }
 function refreshResumeUI(){
-  const bases = readBases();
-  if (baseActive >= bases.length) baseActive = Math.max(0, bases.length-1);
-  store.write('rt_baseActive', String(baseActive));
-  const cur = bases[baseActive];
-  const has = !!(cur && cur.text.length > 100);
-  $('resumeCollapsed').style.display = has ? 'block' : 'none';
-  $('resumeOpen').style.display = has ? 'none' : 'block';
-  $('savedLabel').textContent = has ? '“' + (cur.name || 'Main') + '” resume saved on this phone' : 'Resume saved on this phone';
-  if (cur) { $('resumeText').value = cur.text; $('baseName').value = cur.name || ''; }
-  $('baseChips').style.display = (bases.length > 1 || (bases.length === 1 && bases.length < 5 && has)) ? 'flex' : 'none';
-  $('baseChips').innerHTML = bases.map((b,i)=>
-    '<button class="chip'+(i===baseActive?' on':'')+'" data-base="'+i+'">'+esc(b.name||('Resume '+(i+1)))+'</button>').join('') +
-    (bases.length < 5 ? '<button class="chip" data-base="new">＋ New version</button>' : '');
-  store.write('rt_resume', cur ? cur.text : '');
+const bases = readBases();
+if (baseActive >= bases.length) baseActive = Math.max(0, bases.length-1);
+store.write('rt_baseActive', String(baseActive));
+const cur = bases[baseActive];
+const has = !!(cur && cur.text.length > 100);
+$('resumeCollapsed').style.display = has ? 'block' : 'none';
+$('resumeOpen').style.display = has ? 'none' : 'block';
+$('savedLabel').textContent = has ? '“' + (cur.name || 'Main') + '” resume saved on this phone' : 'Resume saved on this phone';
+if (cur) { $('resumeText').value = cur.text; $('baseName').value = cur.name || ''; }
+$('baseChips').style.display = (bases.length > 1 || (bases.length === 1 && bases.length < 5 && has)) ? 'flex' : 'none';
+$('baseChips').innerHTML = bases.map((b,i)=>
+'<button class="chip'+(i===baseActive?' on':'')+'" data-base="'+i+'">'+esc(b.name||('Resume '+(i+1)))+'</button>').join('') +
+(bases.length < 5 ? '<button class="chip" data-base="new">＋ New version</button>' : '');
+store.write('rt_resume', cur ? cur.text : '');
 }
 $('baseChips').addEventListener('click', e => {
-  const c = e.target.closest('button[data-base]'); if (!c) return;
-  const bases = readBases();
-  if (c.dataset.base === 'new') {
-    if (bases.length >= 5) return;
-    bases.push({name:'', text:''}); writeBases(bases); baseActive = bases.length-1;
-    refreshResumeUI();
-    $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block';
-    $('resumeText').value=''; $('baseName').value=''; $('baseName').focus();
-    return;
-  }
-  baseActive = Number(c.dataset.base);
-  refreshResumeUI();
-  toast('Using “'+ (bases[baseActive].name || 'Resume '+(baseActive+1)) +'” ✓');
+const c = e.target.closest('button[data-base]'); if (!c) return;
+const bases = readBases();
+if (c.dataset.base === 'new') {
+if (bases.length >= 5) return;
+bases.push({name:'', text:''}); writeBases(bases); baseActive = bases.length-1;
+refreshResumeUI();
+$('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block';
+$('resumeText').value=''; $('baseName').value=''; $('baseName').focus();
+return;
+}
+baseActive = Number(c.dataset.base);
+refreshResumeUI();
+toast('Using “'+ (bases[baseActive].name || 'Resume '+(baseActive+1)) +'” ✓');
 });
 function saveActiveBase(){
-  const v = $('resumeText').value.trim();
-  if (v.length < 100) return false;
-  const bases = readBases();
-  const entry = { name: $('baseName').value.trim() || (bases[baseActive] && bases[baseActive].name) || 'Main', text: v };
-  if (bases[baseActive]) bases[baseActive] = entry; else { bases.push(entry); baseActive = bases.length-1; }
-  writeBases(bases);
-  return true;
+const v = $('resumeText').value.trim();
+if (v.length < 100) return false;
+const bases = readBases();
+const entry = { name: $('baseName').value.trim() || (bases[baseActive] && bases[baseActive].name) || 'Main', text: v };
+if (bases[baseActive]) bases[baseActive] = entry; else { bases.push(entry); baseActive = bases.length-1; }
+writeBases(bases);
+return true;
 }
 $('saveResumeBtn').onclick = () => {
-  if (!saveActiveBase()) return showErr('That resume looks too short — paste the whole thing.');
-  hideErr(); toast('Resume saved ✓'); refreshResumeUI();
+if (!saveActiveBase()) return showErr('That resume looks too short — paste the whole thing.');
+hideErr(); toast('Resume saved ✓'); refreshResumeUI();
 };
 $('editResumeBtn').onclick = () => { $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block'; };
 refreshResumeUI();
 // which base fits this job best? cheap keyword overlap, no API call
 function suggestBase(jobText){
-  const bases = readBases(); if (bases.length < 2) return null;
-  const jt = new Set((jobText.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
-  const scores = bases.map(b => {
-    const rt = new Set((b.text.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
-    let s = 0; jt.forEach(w => { if (rt.has(w)) s++; });
-    return s;
-  });
-  let best = 0; scores.forEach((s,i)=>{ if (s > scores[best]) best = i; });
-  if (best !== baseActive && scores[best] > (scores[baseActive]||0) * 1.15) {
-    return { index: best, name: bases[best].name || ('Resume '+(best+1)) };
-  }
-  return null;
+const bases = readBases(); if (bases.length < 2) return null;
+const jt = new Set((jobText.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
+const scores = bases.map(b => {
+const rt = new Set((b.text.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
+let s = 0; jt.forEach(w => { if (rt.has(w)) s++; });
+return s;
+});
+let best = 0; scores.forEach((s,i)=>{ if (s > scores[best]) best = i; });
+if (best !== baseActive && scores[best] > (scores[baseActive]||0) * 1.15) {
+return { index: best, name: bases[best].name || ('Resume '+(best+1)) };
+}
+return null;
 }
 $('accessCode').value = store.read('rt_code');
 // "your situation" — saved, pre-filled for the Kosovo → Spain plan
 const DEFAULT_PROFILE = 'Based in Kosovo (CET timezone — same as Spain and central Europe). Planning to move to Spain on the digital nomad visa, so the job must be fully remote for a non-Spanish company that allows working from Europe / anywhere, ideally paying at least €2,850/month gross (the visa’s income requirement). Fluent English; add your other languages here. Looking for remote customer service / support roles.';
 $('profileText').value = store.read('rt_profile') || DEFAULT_PROFILE;
 $('profileText').addEventListener('input', () => {
-  clearTimeout($('profileText')._t);
-  $('profileText')._t = setTimeout(()=> store.write('rt_profile', $('profileText').value.trim()), 800);
+clearTimeout($('profileText')._t);
+$('profileText')._t = setTimeout(()=> store.write('rt_profile', $('profileText').value.trim()), 800);
 });
 // per-request settings (Phase 2c will grow this into a full Profile screen)
 function readSettings(){
-  try { return JSON.parse(store.read('rt_settings')||'{}') } catch { return {} }
+try { return JSON.parse(store.read('rt_settings')||'{}') } catch { return {} }
 }
 const DEFAULT_SYNONYMS = 'support, success, helpdesk, customer care, client services, technical support, community, onboarding';
 function currentSettings(){
-  return {
-    dnvMonthly: Math.round(Number($('setDnv').value)) || 2849,
-    fitThreshold: Math.round(Number($('setFit').value)) || 60,
-    dnvVerified: '2026-09-09',
-    salaryFloor: Math.round(Number($('setFloor').value)) || 0,
-    country: $('setCountry').value.trim(),
-    targets: $('setTargets').value.trim(),
-    remote: $('setRemote').value,
-    langs: $('setLangs').value.trim(),
-    outputLanguage: $('setOutLang').value,
-    auth: $('setAuth').value.trim(),
-    sponsor: $('setSponsor').value.trim(),
-    notice: $('setNotice').value.trim(),
-    avail: $('setAvail').value.trim(),
-    titleSynonyms: $('setSynonyms').value.trim() || DEFAULT_SYNONYMS,
-  };
+return {
+dnvMonthly: Math.round(Number($('setDnv').value)) || 2849,
+fitThreshold: Math.round(Number($('setFit').value)) || 60,
+dnvVerified: '2026-09-09',
+salaryFloor: Math.round(Number($('setFloor').value)) || 0,
+country: $('setCountry').value.trim(),
+targets: $('setTargets').value.trim(),
+remote: $('setRemote').value,
+langs: $('setLangs').value.trim(),
+outputLanguage: $('setOutLang').value,
+auth: $('setAuth').value.trim(),
+sponsor: $('setSponsor').value.trim(),
+notice: $('setNotice').value.trim(),
+avail: $('setAvail').value.trim(),
+titleSynonyms: $('setSynonyms').value.trim() || DEFAULT_SYNONYMS,
+};
 }
 // everything she is + her stored answers, sent with each request — nothing hard-coded server-side
 function composeProfile(){
-  const s = currentSettings();
-  const parts = [$('profileText').value.trim()];
-  if (s.country) parts.push('Currently living in: ' + s.country);
-  if (s.targets) parts.push('Plan / target countries: ' + s.targets);
-  parts.push('Work mode: ' + s.remote);
-  if (s.salaryFloor) parts.push('Personal salary floor: €' + s.salaryFloor + '/month gross');
-  if (s.langs) parts.push('Languages (CEFR as she stated): ' + s.langs);
-  if (s.auth) parts.push('Stored answer — work authorization: ' + s.auth);
-  if (s.sponsor) parts.push('Stored answer — sponsorship: ' + s.sponsor);
-  if (s.notice) parts.push('Stored answer — notice period / start: ' + s.notice);
-  if (s.avail) parts.push('Stored answer — availability: ' + s.avail);
-  return parts.filter(Boolean).join('\n').slice(0, 2000);
+const s = currentSettings();
+const parts = [$('profileText').value.trim()];
+if (s.country) parts.push('Currently living in: ' + s.country);
+if (s.targets) parts.push('Plan / target countries: ' + s.targets);
+parts.push('Work mode: ' + s.remote);
+if (s.salaryFloor) parts.push('Personal salary floor: €' + s.salaryFloor + '/month gross');
+if (s.langs) parts.push('Languages (CEFR as she stated): ' + s.langs);
+if (s.auth) parts.push('Stored answer — work authorization: ' + s.auth);
+if (s.sponsor) parts.push('Stored answer — sponsorship: ' + s.sponsor);
+if (s.notice) parts.push('Stored answer — notice period / start: ' + s.notice);
+if (s.avail) parts.push('Stored answer — availability: ' + s.avail);
+return parts.filter(Boolean).join('\n').slice(0, 2000);
 }
 (() => {
-  const s = readSettings();
-  const map = { setDnv:'dnvMonthly', setFit:'fitThreshold', setFloor:'salaryFloor', setCountry:'country',
-    setTargets:'targets', setRemote:'remote', setLangs:'langs', setOutLang:'outputLanguage',
-    setAuth:'auth', setSponsor:'sponsor', setNotice:'notice', setAvail:'avail', setSynonyms:'titleSynonyms' };
-  for (const [id, key] of Object.entries(map)) {
-    if (s[key]) $(id).value = s[key];
-    const save = () => { clearTimeout($(id)._t); $(id)._t = setTimeout(()=> store.write('rt_settings', JSON.stringify(currentSettings())), 600); };
-    $(id).addEventListener('input', save);
-    $(id).addEventListener('change', save);
-  }
-  if (!s.titleSynonyms) $('setSynonyms').value = DEFAULT_SYNONYMS;
-  $('voiceText').value = store.read('rt_voice');
-  $('voiceText').addEventListener('input', () => {
-    clearTimeout($('voiceText')._t);
-    $('voiceText')._t = setTimeout(()=> store.write('rt_voice', $('voiceText').value.trim()), 800);
-  });
+const s = readSettings();
+const map = { setDnv:'dnvMonthly', setFit:'fitThreshold', setFloor:'salaryFloor', setCountry:'country',
+setTargets:'targets', setRemote:'remote', setLangs:'langs', setOutLang:'outputLanguage',
+setAuth:'auth', setSponsor:'sponsor', setNotice:'notice', setAvail:'avail', setSynonyms:'titleSynonyms' };
+for (const [id, key] of Object.entries(map)) {
+if (s[key]) $(id).value = s[key];
+const save = () => { clearTimeout($(id)._t); $(id)._t = setTimeout(()=> store.write('rt_settings', JSON.stringify(currentSettings())), 600); };
+$(id).addEventListener('input', save);
+$(id).addEventListener('change', save);
+}
+if (!s.titleSynonyms) $('setSynonyms').value = DEFAULT_SYNONYMS;
+$('voiceText').value = store.read('rt_voice');
+$('voiceText').addEventListener('input', () => {
+clearTimeout($('voiceText')._t);
+$('voiceText')._t = setTimeout(()=> store.write('rt_voice', $('voiceText').value.trim()), 800);
+});
 })();
 
 // ---------- file upload (.txt/.docx/.pdf) ----------
 $('resumeFile').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
-  $('fileStatus').textContent = 'Reading ' + f.name + '…';
-  try {
-    let text = '';
-    if (/\.txt$|\.rtf$/i.test(f.name)) {
-      text = await f.text();
-      if (/\.rtf$/i.test(f.name)) text = text.replace(/\\[a-z]+-?\d* ?|[{}]/g,'').trim();
-    } else if (/\.docx$/i.test(f.name)) {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js');
-      const buf = await f.arrayBuffer();
-      text = (await window.mammoth.extractRawText({arrayBuffer: buf})).value;
-    } else if (/\.pdf$/i.test(f.name)) {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      const pdf = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
-      const parts = [];
-      for (let i=1;i<=pdf.numPages;i++){
-        const page = await pdf.getPage(i);
-        const tc = await page.getTextContent();
-        parts.push(tc.items.map(it=>it.str).join(' '));
-      }
-      text = parts.join('\n\n');
-    } else { throw new Error('Use a .docx, .pdf or .txt file.'); }
-    text = text.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-    if (text.length < 100) throw new Error('Couldn’t read much text from that file — try pasting instead.');
-    $('resumeText').value = text;
-    saveActiveBase();
-    $('fileStatus').textContent = '✓ Loaded and saved ' + f.name + '.';
-    toast('Resume saved ✓');
-  } catch(err){
-    $('fileStatus').textContent = '';
-    showErr('Couldn’t read that file (' + err.message + '). Easiest fix: open it, select all, copy, and paste above.');
-  }
-  e.target.value = '';
+const f = e.target.files[0]; if (!f) return;
+$('fileStatus').textContent = 'Reading ' + f.name + '…';
+try {
+let text = '';
+if (/\.txt$|\.rtf$/i.test(f.name)) {
+text = await f.text();
+if (/\.rtf$/i.test(f.name)) text = text.replace(/\\[a-z]+-?\d* ?|[{}]/g,'').trim();
+} else if (/\.docx$/i.test(f.name)) {
+await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js');
+const buf = await f.arrayBuffer();
+text = (await window.mammoth.extractRawText({arrayBuffer: buf})).value;
+} else if (/\.pdf$/i.test(f.name)) {
+await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const pdf = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+const parts = [];
+for (let i=1;i<=pdf.numPages;i++){
+const page = await pdf.getPage(i);
+const tc = await page.getTextContent();
+parts.push(tc.items.map(it=>it.str).join(' '));
+}
+text = parts.join('\n\n');
+} else { throw new Error('Use a .docx, .pdf or .txt file.'); }
+text = text.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+if (text.length < 100) throw new Error('Couldn’t read much text from that file — try pasting instead.');
+$('resumeText').value = text;
+saveActiveBase();
+$('fileStatus').textContent = '✓ Loaded and saved ' + f.name + '.';
+toast('Resume saved ✓');
+} catch(err){
+$('fileStatus').textContent = '';
+showErr('Couldn’t read that file (' + err.message + '). Easiest fix: open it, select all, copy, and paste above.');
+}
+e.target.value = '';
 });
 function loadScript(src){
-  return new Promise((res,rej)=>{
-    if (document.querySelector('script[src="'+src+'"]')) return res();
-    const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('network'));
-    document.head.appendChild(s);
-  });
+return new Promise((res,rej)=>{
+if (document.querySelector('script[src="'+src+'"]')) return res();
+const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('network'));
+document.head.appendChild(s);
+});
 }
+
+// private mode / blocked storage: nothing saves locally — tell her once, cloud sync still works
+(() => {
+try { localStorage.setItem('rt_probe','1'); localStorage.removeItem('rt_probe'); }
+catch {
+setTimeout(()=> showErr('Heads up: this browser is blocking saved data (private mode?). Your applications still save to the cloud with your access code, but the resume will need re-pasting next visit.'), 800);
+}
+})();
 
 // ---------- health check: show code box only if needed AND not saved yet ----------
 fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
-  if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
+if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v16';
+const APP_VERSION = 'v17';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
-  if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
-    store.write('rt_reloaded', v.v);
-    toast('Updating to the newest version…');
-    setTimeout(()=> location.replace(location.pathname + '?u=' + encodeURIComponent(v.v)), 900);
-  }
+if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
+store.write('rt_reloaded', v.v);
+toast('Updating to the newest version…');
+setTimeout(()=> location.replace(location.pathname + '?u=' + encodeURIComponent(v.v)), 900);
+}
 }).catch(()=>{});
 
 // ---------- tailor flow ----------
 const LOADING_LINES = [
-  'Reading the job posting…','Matching it to your experience…','Rewriting your bullets…',
-  'Adding the keywords recruiters search for…','Running the ATS checks…','Writing your cover letter…','Almost there — polishing…'
+'Reading the job…','Checking for deal-breakers…','Matching your experience…',
+'Rewriting your bullets…','Checking honesty — nothing made up…','Writing your cover letter…',
+'Checking it sounds like you…','Almost there…'
 ];
 let loadTimer = null, loadStart = 0;
 function startLoading(){
-  loadStart = Date.now();
-  const tick = () => {
-    const s = Math.round((Date.now() - loadStart) / 1000);
-    const i = Math.min(Math.floor(s / 6), LOADING_LINES.length - 1);
-    $('loadingMsg').textContent = LOADING_LINES[i] + '  ' + s + 's' + (s > 8 ? ' · usually 20–45s' : '');
-  };
-  tick();
-  loadTimer = setInterval(tick, 1000);
-  $('tailorBtn').disabled = true;
-  $('tailorBtn').innerHTML = '<span class="spin"></span>Tailoring…';
+loadStart = Date.now();
+const tick = () => {
+const s = Math.round((Date.now() - loadStart) / 1000);
+const i = Math.min(Math.floor(s / 6), LOADING_LINES.length - 1);
+$('loadingMsg').textContent = LOADING_LINES[i] + '  ' + s + 's' + (s > 8 ? ' · usually 20–45s' : '');
+};
+tick();
+loadTimer = setInterval(tick, 1000);
+$('tailorBtn').disabled = true;
+$('tailorBtn').innerHTML = '<span class="spin"></span>Tailoring…';
 }
 function stopLoading(){
-  clearInterval(loadTimer); $('loadingMsg').textContent='';
-  $('tailorBtn').disabled = false; $('tailorBtn').textContent = '✂️ Tailor my resume';
+clearInterval(loadTimer); $('loadingMsg').textContent='';
+$('tailorBtn').disabled = false; $('tailorBtn').textContent = '✂️ Tailor my resume';
 }
 function showErr(msg){ $('errBox').textContent = msg; $('errBox').style.display='block'; $('errBox').scrollIntoView({behavior:'smooth',block:'center'}); }
 function hideErr(){ $('errBox').style.display='none'; }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
 
 function looksLikeUrl(s){
-  return /^(https?:\/\/|www\.)\S+$/i.test(s.trim()) && !/\s/.test(s.trim());
+return /^(https?:\/\/|www\.)\S+$/i.test(s.trim()) && !/\s/.test(s.trim());
 }
 let tailoring = false;
 async function doTailor(){
-  if (tailoring) return toast('Hang on — still working on the last one…');
-  hideErr();
-  const resume = ($('resumeText').value || store.read('rt_resume')).trim();
-  if (resume.length < 100) { $('resumeText').focus(); return showErr('Add your resume first (step 1) — paste it once and it stays saved.'); }
-  if ($('resumeText').value.trim().length > 100) saveActiveBase();
-  const code = $('accessCode').value.trim(); if (code) store.write('rt_code', code);
+if (tailoring) return toast('Hang on — still working on the last one…');
+hideErr();
+const resume = ($('resumeText').value || store.read('rt_resume')).trim();
+if (resume.length < 100) { $('resumeText').focus(); return showErr('Add your resume first (step 1) — paste it once and it stays saved.'); }
+if ($('resumeText').value.trim().length > 100) saveActiveBase();
+const code = $('accessCode').value.trim(); if (code) store.write('rt_code', code);
 
-  const jobRaw = $('jobInput').value.trim();
-  if (!jobRaw) return showErr('Add the job (step 2) — paste the link or the description.');
-  const isUrl = looksLikeUrl(jobRaw);
-  let jobText = isUrl ? '' : jobRaw;
-  const jobUrl = isUrl ? (jobRaw.startsWith('www.') ? 'https://' + jobRaw : jobRaw) : '';
+const jobRaw = $('jobInput').value.trim();
+if (!jobRaw) return showErr('Add the job (step 2) — paste the link or the description.');
+const isUrl = looksLikeUrl(jobRaw);
+let jobText = isUrl ? '' : jobRaw;
+const jobUrl = isUrl ? (jobRaw.startsWith('www.') ? 'https://' + jobRaw : jobRaw) : '';
 
-  tailoring = true;
-  startLoading();
-  const ctrl = new AbortController();
-  const killer = setTimeout(() => ctrl.abort(), 150000);
-  try {
-    if (!jobText) {
-      const r = await fetch(API_BASE + '/api/fetch-job', {
-        method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
-        body: JSON.stringify({ url: jobUrl, accessCode: code })
-      });
-      const d = await r.json();
-      if (!r.ok || d.error) {
-        stopLoading(); tailoring = false;
-        if (d.error === 'bad_code') return showErr(d.message);
-        $('jobInput').value = ''; $('jobInput').placeholder = 'Paste the whole job description here…'; $('jobInput').focus();
-        return showErr((d.message || 'Couldn’t read that link.') + '');
-      }
-      jobText = d.jobText;
-    }
+tailoring = true;
+startLoading();
+const ctrl = new AbortController();
+const killer = setTimeout(() => ctrl.abort(), 150000);
+try {
+if (!jobText) {
+let r, d;
+for (let attempt = 0; ; attempt++) {
+try {
+r = await fetch(API_BASE + '/api/fetch-job', {
+method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
+body: JSON.stringify({ url: jobUrl, accessCode: code })
+});
+d = await r.json();
+break;
+} catch (netErr) {
+if (attempt >= 2 || (netErr && netErr.name === 'AbortError')) throw netErr;
+$('loadingMsg').textContent = 'Connection wobbled — trying again…';
+await new Promise(res => setTimeout(res, 1200 * (attempt + 1)));
+}
+}
+if (!r.ok || d.error) {
+stopLoading(); tailoring = false;
+if (d.error === 'bad_code') return showErr(d.message);
+$('jobInput').value = ''; $('jobInput').placeholder = 'Paste the whole job description here…'; $('jobInput').focus();
+return showErr((d.message || 'Couldn’t read that link.') + '');
+}
+jobText = d.jobText;
+}
 
-    window._lastJobText = jobText;
-    window._baseSuggestion = suggestBase(jobText);
-    const tailorBody = { resume, jobText, accessCode: code, profile: composeProfile(),
-      settings: currentSettings(), voice: store.read('rt_voice'), stream: true };
-    const r2 = await fetch(API_BASE + '/api/tailor', {
-      method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
-      body: JSON.stringify(tailorBody)
-    });
-    const ctype = r2.headers.get('content-type') || '';
-    let result;
-    if (!r2.ok || ctype.includes('application/json')) {
-      const d2 = await r2.json();
-      stopLoading(); tailoring = false;
-      if (!r2.ok || d2.error) {
-        if (d2.error === 'bad_code') { $('codeCard').style.display = 'block'; $('accessCode').focus(); }
-        return showErr(d2.message || 'Something went wrong — try again.');
-      }
-      result = d2.result;
-    } else {
-      result = await consumeStream(r2);      // types the resume live as it writes
-      stopLoading(); tailoring = false;
-      if (!result) {
-        $('results').style.display = 'none';
-        return showErr('That one didn’t come through — tap Tailor again (it usually works on the second try).');
-      }
-      if (result._salvage) toast('Resume’s ready — extras didn’t load this time');
-    }
-    if (jobUrl) result.job_url = jobUrl;
-    result._fromFeed = !!window._jobFromFeed; window._jobFromFeed = false;
-    $('jobInput').value = '';   // ready for the next job
-    $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
-    // anti-slop gate: mechanical scan + cheap grader; one regenerate with the
-    // complaints fed back, then a visible warning if it's still off
-    if (!result._salvage) {
-      $('loadingMsg').textContent = 'Checking it sounds like you…';
-      try { result = await antiSlop(result, tailorBody); } catch {}
-      $('loadingMsg').textContent = '';
-    }
-    render(result);
-  } catch(err){
-    stopLoading(); tailoring = false;
-    showErr(err && err.name === 'AbortError'
-      ? 'That took way too long, so I stopped it — tap Tailor again (it usually works on the second try).'
-      : 'Network hiccup — check your signal and try again.');
-  } finally {
-    clearTimeout(killer);
-  }
+window._lastJobText = jobText;
+window._baseSuggestion = suggestBase(jobText);
+const tailorBody = { resume, jobText, accessCode: code, profile: composeProfile(),
+settings: currentSettings(), voice: store.read('rt_voice'), stream: true };
+const r2 = await fetch(API_BASE + '/api/tailor', {
+method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
+body: JSON.stringify(tailorBody)
+});
+const ctype = r2.headers.get('content-type') || '';
+let result;
+if (!r2.ok || ctype.includes('application/json')) {
+const d2 = await r2.json();
+stopLoading(); tailoring = false;
+if (!r2.ok || d2.error) {
+if (d2.error === 'bad_code') { $('codeCard').style.display = 'block'; $('accessCode').focus(); }
+return showErr(d2.message || 'Something went wrong — try again.');
+}
+result = d2.result;
+} else {
+result = await consumeStream(r2);      // types the resume live as it writes
+stopLoading(); tailoring = false;
+if (!result) {
+$('results').style.display = 'none';
+return showErr('That one didn’t come through — tap Tailor again (it usually works on the second try).');
+}
+if (result._salvage) toast('Resume’s ready — extras didn’t load this time');
+}
+if (jobUrl) result.job_url = jobUrl;
+result._fromFeed = !!window._jobFromFeed; window._jobFromFeed = false;
+$('jobInput').value = ''; store.write('rt_jobdraft', '');   // ready for the next job
+$('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
+// anti-slop gate: mechanical scan + cheap grader; one regenerate with the
+// complaints fed back, then a visible warning if it's still off
+if (!result._salvage) {
+$('loadingMsg').textContent = 'Checking it sounds like you…';
+try { result = await antiSlop(result, tailorBody); } catch {}
+$('loadingMsg').textContent = '';
+}
+render(result);
+} catch(err){
+stopLoading(); tailoring = false;
+showErr(err && err.name === 'AbortError'
+? 'That took way too long, so I stopped it — tap Tailor again (it usually works on the second try).'
+: 'Network hiccup — check your signal and try again.');
+} finally {
+clearTimeout(killer);
+}
 }
 // One smart button: uses the box if filled, otherwise grabs the copied link.
 $('tailorBtn').onclick = async () => {
-  if (!$('jobInput').value.trim()) {
-    try {
-      const t = (await navigator.clipboard.readText() || '').trim();
-      if (t && (looksLikeUrl(t) || t.length > 80)) { $('jobInput').value = t; toast('Pasted from clipboard'); }
-    } catch { /* clipboard not available — fall through */ }
-  }
-  if (!$('jobInput').value.trim()) { $('jobInput').focus(); return showErr('Tap a job above, or copy a job link and hit the button again.'); }
-  doTailor();
+if (!$('jobInput').value.trim()) {
+try {
+const t = (await navigator.clipboard.readText() || '').trim();
+if (t && (looksLikeUrl(t) || t.length > 80)) { $('jobInput').value = t; toast('Pasted from clipboard'); }
+} catch { /* clipboard not available — fall through */ }
+}
+if (!$('jobInput').value.trim()) { $('jobInput').focus(); return showErr('Tap a job above, or copy a job link and hit the button again.'); }
+doTailor();
 };
+
+// what she types in the job box survives a killed tab
+$('jobInput').value = $('jobInput').value || store.read('rt_jobdraft');
+$('jobInput').addEventListener('input', () => {
+clearTimeout($('jobInput')._t);
+$('jobInput')._t = setTimeout(()=> store.write('rt_jobdraft', $('jobInput').value), 500);
+});
 
 // A pasted link starts tailoring by itself.
 $('jobInput').addEventListener('paste', () => {
-  setTimeout(() => { if (looksLikeUrl($('jobInput').value)) doTailor(); }, 150);
+setTimeout(() => { if (looksLikeUrl($('jobInput').value)) doTailor(); }, 150);
 });
 
 // Resume auto-saves while typing — the Save button is just reassurance.
 let saveTimer = null;
 $('resumeText').addEventListener('input', () => {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveActiveBase, 800);
+clearTimeout(saveTimer);
+saveTimer = setTimeout(saveActiveBase, 800);
 });
 
 // ---------- streaming: type the resume live while Claude writes ----------
 function startStreamView(){
-  $('results').style.display = 'block';
-  $('resultTitle').textContent = '🎯 Writing your resume…';
-  $('resultSub').textContent = '';
-  $('outResume').textContent = '';
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane==='paneResume'));
-  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id==='paneResume'));
-  $('results').scrollIntoView({behavior:'smooth'});
+$('results').style.display = 'block';
+$('resultTitle').textContent = '🎯 Writing your resume…';
+$('resultSub').textContent = '';
+$('outResume').textContent = '';
+document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane==='paneResume'));
+document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id==='paneResume'));
+$('results').scrollIntoView({behavior:'smooth'});
 }
 async function consumeStream(resp){
-  const reader = resp.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '', full = '', started = false, lastPaint = 0;
-  try {
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, {stream: true});
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue;
-        let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
-        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
-          full += ev.delta.text;
-          const rm = /===RESUME===\s*([\s\S]*?)(?:\s*===DATA===[\s\S]*)?$/.exec(full);
-          if (rm && rm[1]) {
-            if (!started) { started = true; clearInterval(loadTimer); $('loadingMsg').textContent = 'Watch it write ↓  (details land at the end)'; startStreamView(); }
-            const now = Date.now();
-            if (now - lastPaint > 120) { $('outResume').textContent = rm[1]; lastPaint = now; }
-          }
-        }
-      }
-    }
-  } catch { /* dropped mid-stream — salvage whatever was written below */ }
+const reader = resp.body.getReader();
+const dec = new TextDecoder();
+let buf = '', full = '', started = false, lastPaint = 0;
+try {
+while (true) {
+const {done, value} = await reader.read();
+if (done) break;
+buf += dec.decode(value, {stream: true});
+const lines = buf.split('\n');
+buf = lines.pop();
+for (const line of lines) {
+if (!line.startsWith('data:')) continue;
+let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
+full += ev.delta.text;
+const rm = /===RESUME===\s*([\s\S]*?)(?:\s*===DATA===[\s\S]*)?$/.exec(full);
+if (rm && rm[1]) {
+if (!started) { started = true; clearInterval(loadTimer); $('loadingMsg').textContent = 'Watch it write ↓  (details land at the end)'; startStreamView(); }
+const now = Date.now();
+if (now - lastPaint > 120) { $('outResume').textContent = rm[1]; lastPaint = now; }
+}
+}
+}
+}
+} catch { /* dropped mid-stream — salvage whatever was written below */ }
 
-  // Full success: resume + data block.
-  const m = /===RESUME===\s*([\s\S]*?)\s*===DATA===\s*([\s\S]*)/.exec(full);
-  if (m) {
-    let tail = m[2].trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    let parsed = null;
-    try { parsed = JSON.parse(tail); } catch {
-      const s = tail.indexOf('{'), e = tail.lastIndexOf('}');
-      if (s >= 0 && e > s) { try { parsed = JSON.parse(tail.slice(s, e + 1)); } catch {} }
-    }
-    if (parsed) { parsed.tailored_resume = m[1].trim(); return parsed; }
-    if (m[1].trim().length > 200) return { _salvage: true, tailored_resume: m[1].trim() };
-  }
-  // Resume streamed but the data block never finished — keep the resume.
-  const rOnly = /===RESUME===\s*([\s\S]*)/.exec(full);
-  const resumeText = (rOnly ? rOnly[1] : full).replace(/===DATA===[\s\S]*$/, '').trim();
-  if (resumeText.length > 200) return { _salvage: true, tailored_resume: resumeText };
-  return null;
+// Full success: resume + data block.
+const m = /===RESUME===\s*([\s\S]*?)\s*===DATA===\s*([\s\S]*)/.exec(full);
+if (m) {
+let tail = m[2].trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+let parsed = null;
+try { parsed = JSON.parse(tail); } catch {
+const s = tail.indexOf('{'), e = tail.lastIndexOf('}');
+if (s >= 0 && e > s) { try { parsed = JSON.parse(tail.slice(s, e + 1)); } catch {} }
+}
+if (parsed) { parsed.tailored_resume = m[1].trim(); return parsed; }
+if (m[1].trim().length > 200) return { _salvage: true, tailored_resume: m[1].trim() };
+}
+// Resume streamed but the data block never finished — keep the resume.
+const rOnly = /===RESUME===\s*([\s\S]*)/.exec(full);
+const resumeText = (rOnly ? rOnly[1] : full).replace(/===DATA===[\s\S]*$/, '').trim();
+if (resumeText.length > 200) return { _salvage: true, tailored_resume: resumeText };
+return null;
 }
 
 // mandatory Apply kit fallback: contact pulled from the saved resume text,
 // answers assembled from her real materials (cover note, situation) only.
 function buildFallbackKit(r){
-  const res = store.read('rt_resume') || '';
-  const prof = $('profileText').value || '';
-  const email = (res.match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [''])[0];
-  const phone = (res.match(/(?:\+|00)?[\d(][\d\s().-]{7,}\d/) || [''])[0].trim();
-  const name = r.candidate_name || (res.split('\n').map(s=>s.trim()).find(s=>s && !s.includes('@') && !/\d{3}/.test(s)) || '');
-  const linkedin = (res.match(/(?:linkedin\.com\/in\/|linkedin\.com\/)[^\s|,]+/i) || [''])[0];
-  const location = (prof.match(/Based in ([^.(]+)/i) || [,''])[1].trim();
-  // honesty: nothing invented — only what her own materials state, else leave it to her
-  const dnvGoal = (readSettings().dnvMonthly || (/€\s?2,?8\d\d/.test(prof) ? 2849 : 0));
-  const salaryGoal = dnvGoal
-    ? 'I’m targeting at least €' + dnvGoal.toLocaleString('en') + ' gross monthly, and flexible for the right role.'
-    : 'I’m flexible — keen to hear the range for this role.';
-  const answers = [
-    r.cover_note ? { label: 'Why do you want to work here?', text: r.cover_note } : null,
-    { label: 'Salary expectation', text: salaryGoal },
-    { label: 'When can you start?', text: '(Write your real notice period / start date here.)' },
-    { label: 'Location & remote setup', text: (location ? 'Based in ' + location + '. ' : '') + '(Add your own words about your remote setup — only what’s true.)' },
-  ].filter(Boolean);
-  return { contact: { name, email, phone, location, linkedin }, answers };
+const res = store.read('rt_resume') || '';
+const prof = $('profileText').value || '';
+const email = (res.match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [''])[0];
+const phone = (res.match(/(?:\+|00)?[\d(][\d\s().-]{7,}\d/) || [''])[0].trim();
+const name = r.candidate_name || (res.split('\n').map(s=>s.trim()).find(s=>s && !s.includes('@') && !/\d{3}/.test(s)) || '');
+const linkedin = (res.match(/(?:linkedin\.com\/in\/|linkedin\.com\/)[^\s|,]+/i) || [''])[0];
+const location = (prof.match(/Based in ([^.(]+)/i) || [,''])[1].trim();
+// honesty: nothing invented — only what her own materials state, else leave it to her
+const dnvGoal = (readSettings().dnvMonthly || (/€\s?2,?8\d\d/.test(prof) ? 2849 : 0));
+const salaryGoal = dnvGoal
+? 'I’m targeting at least €' + dnvGoal.toLocaleString('en') + ' gross monthly, and flexible for the right role.'
+: 'I’m flexible — keen to hear the range for this role.';
+const answers = [
+r.cover_note ? { label: 'Why do you want to work here?', text: r.cover_note } : null,
+{ label: 'Salary expectation', text: salaryGoal },
+{ label: 'When can you start?', text: '(Write your real notice period / start date here.)' },
+{ label: 'Location & remote setup', text: (location ? 'Based in ' + location + '. ' : '') + '(Add your own words about your remote setup — only what’s true.)' },
+].filter(Boolean);
+return { contact: { name, email, phone, location, linkedin }, answers };
 }
 
 // ---------- anti-slop: check → regenerate once → visible warning ----------
 async function slopScore(result, tb){
-  const r = await fetch(API_BASE + '/api/slop', {
-    method:'POST', headers:{'content-type':'application/json'},
-    body: JSON.stringify({ result, resume: tb.resume, jobText: tb.jobText, profile: tb.profile, accessCode: tb.accessCode })
-  });
-  if (!r.ok) throw new Error('slop check unavailable');
-  return await r.json();
+const r = await fetch(API_BASE + '/api/slop', {
+method:'POST', headers:{'content-type':'application/json'},
+body: JSON.stringify({ result, resume: tb.resume, jobText: tb.jobText, profile: tb.profile, accessCode: tb.accessCode })
+});
+if (!r.ok) throw new Error('slop check unavailable');
+return await r.json();
 }
 async function antiSlop(result, tb){
-  let s = await slopScore(result, tb);
-  const bad = x => (x.flags||[]).length > 0 || (x.score != null && x.score > 4);
-  if (!bad(s)) return result;
-  // one regenerate with the complaints fed back
-  $('loadingMsg').textContent = 'First draft sounded off — rewriting it properly…';
-  const complaints = (s.flags||[]).map(f=>f.where+': '+f.reason);
-  if (s.score != null && s.score > 4) complaints.push('overall it reads AI-generated ('+s.score+'/10) — vary sentence lengths, cut template phrasing, be concrete');
-  const r2 = await fetch(API_BASE + '/api/tailor', {
-    method:'POST', headers:{'content-type':'application/json'},
-    body: JSON.stringify({ ...tb, stream:false, complaints })
-  });
-  const d2 = await r2.json().catch(()=>null);
-  if (r2.ok && d2 && d2.result && d2.result.tailored_resume) {
-    let s2 = null;
-    try { s2 = await slopScore(d2.result, tb); } catch {}
-    if (!s2 || !bad(s2)) return d2.result;
-    d2.result._slop = s2;            // still off → return WITH a visible warning
-    return d2.result;
-  }
-  result._slop = s;                  // regenerate failed → keep first draft, warn
-  return result;
+let s = await slopScore(result, tb);
+const bad = x => (x.flags||[]).length > 0 || (x.score != null && x.score > 4);
+if (!bad(s)) return result;
+// one regenerate with the complaints fed back
+$('loadingMsg').textContent = 'First draft sounded off — rewriting it properly…';
+const complaints = (s.flags||[]).map(f=>f.where+': '+f.reason);
+if (s.score != null && s.score > 4) complaints.push('overall it reads AI-generated ('+s.score+'/10) — vary sentence lengths, cut template phrasing, be concrete');
+const r2 = await fetch(API_BASE + '/api/tailor', {
+method:'POST', headers:{'content-type':'application/json'},
+body: JSON.stringify({ ...tb, stream:false, complaints })
+});
+const d2 = await r2.json().catch(()=>null);
+if (r2.ok && d2 && d2.result && d2.result.tailored_resume) {
+let s2 = null;
+try { s2 = await slopScore(d2.result, tb); } catch {}
+if (!s2 || !bad(s2)) return d2.result;
+d2.result._slop = s2;            // still off → return WITH a visible warning
+return d2.result;
+}
+result._slop = s;                  // regenerate failed → keep first draft, warn
+return result;
 }
 
 // ---------- raw word-level diff + one-tap vetoes ----------
 function lcsOps(a, b){               // generic LCS over two arrays → op list
-  const n=a.length, m=b.length, dp=[];
-  for (let i=n; i>=0; i--){ dp[i]=new Array(m+1).fill(0); }
-  for (let i=n-1; i>=0; i--) for (let j=m-1; j>=0; j--)
-    dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
-  const ops=[]; let i=0,j=0;
-  while (i<n && j<m){
-    if (a[i]===b[j]) { ops.push({t:'=',a:a[i]}); i++; j++; }
-    else if (dp[i+1][j] >= dp[i][j+1]) { ops.push({t:'-',a:a[i]}); i++; }
-    else { ops.push({t:'+',b:b[j]}); j++; }
-  }
-  while (i<n) ops.push({t:'-',a:a[i++]});
-  while (j<m) ops.push({t:'+',b:b[j++]});
-  return ops;
+const n=a.length, m=b.length, dp=[];
+for (let i=n; i>=0; i--){ dp[i]=new Array(m+1).fill(0); }
+for (let i=n-1; i>=0; i--) for (let j=m-1; j>=0; j--)
+dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
+const ops=[]; let i=0,j=0;
+while (i<n && j<m){
+if (a[i]===b[j]) { ops.push({t:'=',a:a[i]}); i++; j++; }
+else if (dp[i+1][j] >= dp[i][j+1]) { ops.push({t:'-',a:a[i]}); i++; }
+else { ops.push({t:'+',b:b[j]}); j++; }
+}
+while (i<n) ops.push({t:'-',a:a[i++]});
+while (j<m) ops.push({t:'+',b:b[j++]});
+return ops;
 }
 function wordDiffHtml(oldLine, newLine){
-  const ops = lcsOps(oldLine.split(/\s+/), newLine.split(/\s+/));
-  return ops.map(o => o.t==='=' ? esc(o.a)
-    : o.t==='-' ? '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>'
-    : '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>').join(' ');
+const ops = lcsOps(oldLine.split(/\s+/), newLine.split(/\s+/));
+return ops.map(o => o.t==='=' ? esc(o.a)
+: o.t==='-' ? '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>'
+: '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>').join(' ');
 }
 // pair up removed/added lines into changes; returns [{t:'='|'-'|'+'|'~', a?, b?}]
 function resumeDiff(before, after){
-  const ops = lcsOps(before.split('\n'), after.split('\n'));
-  const out=[];
-  for (let k=0; k<ops.length; k++){
-    if (ops[k].t==='-' && ops[k+1] && ops[k+1].t==='+'){ out.push({t:'~', a:ops[k].a, b:ops[k+1].b}); k++; }
-    else out.push(ops[k]);
-  }
-  return out;
+const ops = lcsOps(before.split('\n'), after.split('\n'));
+const out=[];
+for (let k=0; k<ops.length; k++){
+if (ops[k].t==='-' && ops[k+1] && ops[k+1].t==='+'){ out.push({t:'~', a:ops[k].a, b:ops[k+1].b}); k++; }
+else out.push(ops[k]);
+}
+return out;
 }
 let diffOps = [], diffVetoes = new Set();
 function effectiveResume(){
-  return diffOps.map((o,i)=>{
-    const v = diffVetoes.has(i);
-    if (o.t==='=') return o.a;
-    if (o.t==='~') return v ? o.a : o.b;
-    if (o.t==='+') return v ? null : o.b;
-    return v ? o.a : null;           // '-': vetoing a removal restores the line
-  }).filter(x => x !== null).join('\n');
+return diffOps.map((o,i)=>{
+const v = diffVetoes.has(i);
+if (o.t==='=') return o.a;
+if (o.t==='~') return v ? o.a : o.b;
+if (o.t==='+') return v ? null : o.b;
+return v ? o.a : null;           // '-': vetoing a removal restores the line
+}).filter(x => x !== null).join('\n');
 }
 function persistVetoes(){
-  const h = readHistory(); const e = h.find(x=>x.when===currentHistId);
-  if (e) { e.vetoes = [...diffVetoes]; writeHistory(h); }
+const h = readHistory(); const e = h.find(x=>x.when===currentHistId);
+if (e) { e.vetoes = [...diffVetoes]; writeHistory(h); }
 }
 function renderDiff(){
-  if (!diffOps.some(o=>o.t!=='=')) { $('outDiff').innerHTML=''; return; }
-  $('outDiff').innerHTML =
-    '<p class="hint" style="margin:0 0 4px">🔎 Every edit, word by word — tap ↩︎ to put a line back how it was:</p>' +
-    diffOps.map((o,i)=>{
-      if (o.t==='=') return '';
-      const v = diffVetoes.has(i);
-      const btn = '<button class="btn small" data-veto="'+i+'" style="flex:none;padding:4px 9px">'+(v?'undo':'↩︎')+'</button>';
-      let html;
-      if (o.t==='~') html = v ? '<s class="muted">'+wordDiffHtml(o.a,o.b)+'</s><br><b>kept your original:</b> '+esc(o.a) : wordDiffHtml(o.a,o.b);
-      else if (o.t==='+') html = v ? '<s class="muted">'+esc(o.b)+'</s> <span class="muted">(removed)</span>' : '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>';
-      else html = v ? '<b>kept:</b> '+esc(o.a) : '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>';
-      return '<div style="display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0;font-size:.88rem"><span style="flex:1;min-width:0;word-wrap:break-word">'+html+'</span>'+btn+'</div>';
-    }).join('') +
-    '<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">';
+if (!diffOps.some(o=>o.t!=='=')) { $('outDiff').innerHTML=''; return; }
+$('outDiff').innerHTML =
+'<p class="hint" style="margin:0 0 4px">🔎 Every edit, word by word — tap ↩︎ to put a line back how it was:</p>' +
+diffOps.map((o,i)=>{
+if (o.t==='=') return '';
+const v = diffVetoes.has(i);
+const btn = '<button class="btn small" data-veto="'+i+'" style="flex:none;padding:4px 9px">'+(v?'undo':'↩︎')+'</button>';
+let html;
+if (o.t==='~') html = v ? '<s class="muted">'+wordDiffHtml(o.a,o.b)+'</s><br><b>kept your original:</b> '+esc(o.a) : wordDiffHtml(o.a,o.b);
+else if (o.t==='+') html = v ? '<s class="muted">'+esc(o.b)+'</s> <span class="muted">(removed)</span>' : '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>';
+else html = v ? '<b>kept:</b> '+esc(o.a) : '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>';
+return '<div style="display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0;font-size:.88rem"><span style="flex:1;min-width:0;word-wrap:break-word">'+html+'</span>'+btn+'</div>';
+}).join('') +
+'<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">';
 }
 $('outDiff').addEventListener('click', e => {
-  const b = e.target.closest('button[data-veto]'); if (!b) return;
-  const i = Number(b.dataset.veto);
-  diffVetoes.has(i) ? diffVetoes.delete(i) : diffVetoes.add(i);
-  persistVetoes();
-  lastResume = effectiveResume();
-  $('outResume').textContent = lastResume;
-  docxCache.text = '';               // rebuilt on next download
-  renderDiff();
-  toast(diffVetoes.has(i) ? 'Put back your original ✓' : 'Using the new version ✓');
+const b = e.target.closest('button[data-veto]'); if (!b) return;
+const i = Number(b.dataset.veto);
+diffVetoes.has(i) ? diffVetoes.delete(i) : diffVetoes.add(i);
+persistVetoes();
+lastResume = effectiveResume();
+$('outResume').textContent = lastResume;
+docxCache.text = '';               // rebuilt on next download
+renderDiff();
+toast(diffVetoes.has(i) ? 'Put back your original ✓' : 'Using the new version ✓');
 });
 
 // ---------- render results ----------
 let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '', lastLetter = '', lastFollowUp = '', lastTitle = '';
 function render(r, fromHistory){
-  lastResume = r.tailored_resume || '';
-  lastNote = r.cover_note || '';
-  lastName = r.candidate_name || '';
-  lastCompany = r.company || '';
-  lastTitle = r.job_title || '';
-  lastLetter = r.cover_letter || '';
-  lastFollowUp = r.follow_up || '';
-  lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
-  if (!fromHistory) saveHistory(r);
-  // raw diff vs the resume she saved, with per-job vetoes remembered
-  const original = store.read('rt_resume');
-  diffOps = (original && lastResume && !r._salvage) ? resumeDiff(original, lastResume) : [];
-  const histEntry = currentHistId && entryById(currentHistId);
-  diffVetoes = new Set((histEntry && histEntry.vetoes) || []);
-  if (diffVetoes.size) lastResume = effectiveResume();
-  // pre-build the Word file in the background so the download tap is instant
-  // (also keeps iOS's share sheet inside the tap-gesture window)
-  setTimeout(()=> buildDocxBlob(lastResume).catch(()=>{}), 1200);
-  $('resultTitle').textContent = '🎯 Tailored for this job';
-  const ojb = $('openJobBtn');
-  if (r.job_url) { ojb.href = r.job_url; ojb.style.display = 'inline-block'; }
-  else ojb.style.display = 'none';
-  $('results').style.display = 'block';
-  $('resultSub').textContent = lastJob ? lastJob : '';
+lastResume = r.tailored_resume || '';
+lastNote = r.cover_note || '';
+lastName = r.candidate_name || '';
+lastCompany = r.company || '';
+lastTitle = r.job_title || '';
+lastLetter = r.cover_letter || '';
+lastFollowUp = r.follow_up || '';
+lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
+if (!fromHistory) saveHistory(r);
+// raw diff vs the resume she saved, with per-job vetoes remembered
+const original = store.read('rt_resume');
+diffOps = (original && lastResume && !r._salvage) ? resumeDiff(original, lastResume) : [];
+const histEntry = currentHistId && entryById(currentHistId);
+diffVetoes = new Set((histEntry && histEntry.vetoes) || []);
+if (diffVetoes.size) lastResume = effectiveResume();
+// pre-build the Word file in the background so the download tap is instant
+// (also keeps iOS's share sheet inside the tap-gesture window)
+setTimeout(()=> buildDocxBlob(lastResume).catch(()=>{}), 1200);
+$('resultTitle').textContent = '🎯 Tailored for this job';
+const ojb = $('openJobBtn');
+if (r.job_url) { ojb.href = r.job_url; ojb.style.display = 'inline-block'; }
+else ojb.style.display = 'none';
+$('results').style.display = 'block';
+$('resultSub').textContent = lastJob ? lastJob : '';
 
-  const salvage = !!r._salvage;
-  const before = clamp(r.match_before), after = clamp(r.match_after);
-  $('scoreBefore').textContent = salvage ? '–' : before + '%';
-  $('scoreAfter').textContent = salvage ? '–' : after + '%';
-  $('scoreNum').textContent = salvage ? '✓' : after + '%';
-  $('scoreWhy').textContent = salvage
-    ? 'The resume is ready to use — the score and extras didn’t load for this one. Tailor again if you want the full report.'
-    : (r.match_explanation || '');
-  const C = 301.6;
-  requestAnimationFrame(()=> {
-    const arc = $('ringArc');
-    arc.style.transition = 'stroke-dashoffset 1.2s ease';
-    arc.style.strokeDashoffset = String(C * (1 - (salvage ? 100 : after)/100));
-    arc.style.stroke = salvage ? 'var(--line)' : after >= 75 ? 'var(--good)' : after >= 55 ? 'var(--warn)' : 'var(--bad)';
-  });
+const salvage = !!r._salvage;
+const before = clamp(r.match_before), after = clamp(r.match_after);
+$('scoreBefore').textContent = salvage ? '–' : before + '%';
+$('scoreAfter').textContent = salvage ? '–' : after + '%';
+$('scoreNum').textContent = salvage ? '✓' : after + '%';
+$('scoreWhy').textContent = salvage
+? 'The resume is ready to use — the score and extras didn’t load for this one. Tailor again if you want the full report.'
+: (r.match_explanation || '');
+const C = 301.6;
+requestAnimationFrame(()=> {
+const arc = $('ringArc');
+arc.style.transition = 'stroke-dashoffset 1.2s ease';
+arc.style.strokeDashoffset = String(C * (1 - (salvage ? 100 : after)/100));
+arc.style.stroke = salvage ? 'var(--line)' : after >= 75 ? 'var(--good)' : after >= 55 ? 'var(--warn)' : 'var(--bad)';
+});
 
-  $('outResume').textContent = lastResume;
+$('outResume').textContent = lastResume;
 
-  // knockout pre-check — hard gates first, before she reads anything else
-  const ko = r.knockout || [];
-  const koFails = ko.filter(k=>k.verdict==='FAIL'), koAsks = ko.filter(k=>k.verdict==='ASK');
-  $('knockoutBanner').style.display = (koFails.length || koAsks.length) ? 'block' : 'none';
-  if (koFails.length || koAsks.length) {
-    $('knockoutBanner').style.borderColor = koFails.length ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
-    $('knockoutBanner').style.background = koFails.length ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
-    $('knockoutBanner').innerHTML =
-      (koFails.length ? '<b>🔴 This job has a hard no — read before spending time:</b><br>' + koFails.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '') +
-      (koFails.length && koAsks.length ? '<br>' : '') +
-      (koAsks.length ? '<b>🟡 They’ll ask — check you can answer yes:</b><br>' + koAsks.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '');
-  }
-  // fit verdict — “low odds” beats a quietly weak tailor
-  const fit = r.fit || {};
-  $('fitBanner').style.display = (fit.proceed === false) ? 'block' : 'none';
-  if (fit.proceed === false) {
-    $('fitBanner').style.borderColor = 'rgba(224,138,0,.4)';
-    $('fitBanner').innerHTML = '<b>⚖️ Low odds — your time is probably better spent elsewhere.</b><br>' +
-      esc(fit.reason || '') + (fit.met_pct != null ? ' <span class="muted">(you meet ~' + clamp(fit.met_pct) + '% of what they ask for)</span>' : '');
-  }
-  // why this score + the one change that moves it most
-  const why = r.why_score || {};
-  $('outWhy').innerHTML = (why.drivers||[]).length || why.biggest_boost
-    ? (why.drivers||[]).map(esc).join(' · ') + (why.biggest_boost ? '<br><b style="color:var(--ink)">Biggest boost:</b> ' + esc(why.biggest_boost) : '')
-    : '';
-  // digital-nomad-visa fit
-  const dnv = r.dnv_fit || {};
-  $('dnvBanner').style.display = dnv.status && dnv.note ? 'block' : 'none';
-  if (dnv.status && dnv.note) {
-    const ic = dnv.status === 'MEETS' ? '🟢' : dnv.status === 'BELOW' ? '🔴' : '🟡';
-    $('dnvBanner').style.borderColor = dnv.status === 'MEETS' ? 'rgba(31,169,113,.45)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
-    $('dnvBanner').style.background = dnv.status === 'MEETS' ? 'rgba(31,169,113,.08)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
-    $('dnvBanner').innerHTML = '<b>' + ic + ' Visa income check: ' + esc(dnv.status) + '</b>' +
-      (dnv.estimated && dnv.monthly_eur_estimate ? ' <span class="muted">(≈€' + esc(dnv.monthly_eur_estimate) + '/mo — an estimate, not from the posting)</span>' : '') +
-      '<br>' + esc(dnv.note);
-  }
-  renderDiff();
-  // a different base resume matches this job better → one-tap switch & redo
-  const bs = !fromHistory && window._baseSuggestion;
-  $('baseSuggest').style.display = bs ? 'block' : 'none';
-  if (bs) $('baseSuggest').innerHTML = '<b>📄 Your “' + esc(bs.name) + '” resume looks like a better fit for this job.</b> ' +
-    '<button class="btn small" id="baseSwitchBtn" style="margin-top:6px">Use it and tailor again</button>';
-  // anti-slop warning — only when a regenerate still didn't fix it
-  const slop = r._slop;
-  $('slopBanner').style.display = slop ? 'block' : 'none';
-  if (slop) {
-    $('slopBanner').style.borderColor = 'rgba(224,138,0,.4)';
-    $('slopBanner').innerHTML = '<b>🤖 Heads up — parts of this still sound AI-written' +
-      (slop.score != null ? ' (' + esc(slop.score) + '/10)' : '') + '.</b> Reword the flagged bits in your own voice before sending:<br>' +
-      (slop.flags||[]).slice(0,6).map(f=>'• '+esc(f.where)+': '+esc(f.reason)).join('<br>');
-  }
-  // questions she should answer to make the result stronger
-  $('outAsk').innerHTML = (r.questions_for_her||[]).length
-    ? '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>✍️ Answer these and tailor again — it gets stronger:</b><br>' +
-      r.questions_for_her.map(q=>'• '+esc(q)).join('<br>') + '</div>'
-    : '';
+// knockout pre-check — hard gates first, before she reads anything else
+const ko = r.knockout || [];
+const koFails = ko.filter(k=>k.verdict==='FAIL'), koAsks = ko.filter(k=>k.verdict==='ASK');
+$('knockoutBanner').style.display = (koFails.length || koAsks.length) ? 'block' : 'none';
+if (koFails.length || koAsks.length) {
+$('knockoutBanner').style.borderColor = koFails.length ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
+$('knockoutBanner').style.background = koFails.length ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
+$('knockoutBanner').innerHTML =
+(koFails.length ? '<b>🔴 This job has a hard no — read before spending time:</b><br>' + koFails.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '') +
+(koFails.length && koAsks.length ? '<br>' : '') +
+(koAsks.length ? '<b>🟡 They’ll ask — check you can answer yes:</b><br>' + koAsks.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '');
+}
+// fit verdict — “low odds” beats a quietly weak tailor
+const fit = r.fit || {};
+$('fitBanner').style.display = (fit.proceed === false) ? 'block' : 'none';
+if (fit.proceed === false) {
+$('fitBanner').style.borderColor = 'rgba(224,138,0,.4)';
+$('fitBanner').innerHTML = '<b>⚖️ Low odds — your time is probably better spent elsewhere.</b><br>' +
+esc(fit.reason || '') + (fit.met_pct != null ? ' <span class="muted">(you meet ~' + clamp(fit.met_pct) + '% of what they ask for)</span>' : '');
+}
+// why this score + the one change that moves it most
+const why = r.why_score || {};
+$('outWhy').innerHTML = (why.drivers||[]).length || why.biggest_boost
+? (why.drivers||[]).map(esc).join(' · ') + (why.biggest_boost ? '<br><b style="color:var(--ink)">Biggest boost:</b> ' + esc(why.biggest_boost) : '')
+: '';
+// digital-nomad-visa fit
+const dnv = r.dnv_fit || {};
+$('dnvBanner').style.display = dnv.status && dnv.note ? 'block' : 'none';
+if (dnv.status && dnv.note) {
+const ic = dnv.status === 'MEETS' ? '🟢' : dnv.status === 'BELOW' ? '🔴' : '🟡';
+$('dnvBanner').style.borderColor = dnv.status === 'MEETS' ? 'rgba(31,169,113,.45)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
+$('dnvBanner').style.background = dnv.status === 'MEETS' ? 'rgba(31,169,113,.08)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
+$('dnvBanner').innerHTML = '<b>' + ic + ' Visa income check: ' + esc(dnv.status) + '</b>' +
+(dnv.estimated && dnv.monthly_eur_estimate ? ' <span class="muted">(≈€' + esc(dnv.monthly_eur_estimate) + '/mo — an estimate, not from the posting)</span>' : '') +
+'<br>' + esc(dnv.note);
+}
+renderDiff();
+// a different base resume matches this job better → one-tap switch & redo
+const bs = !fromHistory && window._baseSuggestion;
+$('baseSuggest').style.display = bs ? 'block' : 'none';
+if (bs) $('baseSuggest').innerHTML = '<b>📄 Your “' + esc(bs.name) + '” resume looks like a better fit for this job.</b> ' +
+'<button class="btn small" id="baseSwitchBtn" style="margin-top:6px">Use it and tailor again</button>';
+// anti-slop warning — only when a regenerate still didn't fix it
+const slop = r._slop;
+$('slopBanner').style.display = slop ? 'block' : 'none';
+if (slop) {
+$('slopBanner').style.borderColor = 'rgba(224,138,0,.4)';
+$('slopBanner').innerHTML = '<b>🤖 Heads up — parts of this still sound AI-written' +
+(slop.score != null ? ' (' + esc(slop.score) + '/10)' : '') + '.</b> Reword the flagged bits in your own voice before sending:<br>' +
+(slop.flags||[]).slice(0,6).map(f=>'• '+esc(f.where)+': '+esc(f.reason)).join('<br>');
+}
+// questions she should answer to make the result stronger
+$('outAsk').innerHTML = (r.questions_for_her||[]).length
+? '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>✍️ Answer these and tailor again — it gets stronger:</b><br>' +
+r.questions_for_her.map(q=>'• '+esc(q)).join('<br>') + '</div>'
+: '';
 
-  $('outTips').innerHTML = (r.tips||[]).length
-    ? '<p class="hint" style="margin:0 0 4px">💡 For this application:</p>' +
-      r.tips.map(t=>'<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)">'+esc(t)+'</div>').join('') +
-      '<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">'
-    : '';
-  $('outChanges').innerHTML = (r.changes||[]).map(c =>
-    '<div class="chg"><b>'+esc(c.what)+'</b><span>'+esc(c.why)+'</span></div>').join('') || '<p class="muted">No changes listed.</p>';
-  $('outKeywords').innerHTML = (r.keywords_added||[]).length
-    ? '<p class="hint" style="margin:0 0 4px">Keywords now in your resume:</p>' + r.keywords_added.map(k=>'<span class="kw">'+esc(k)+'</span>').join('')
-    : '';
-  $('outMissing').innerHTML = (r.missing_keywords||[]).length
-    ? '<p class="hint" style="margin:0 0 4px">Couldn’t honestly claim — nothing was made up:</p>' +
-      r.missing_keywords.map(m=>'<div class="miss"><b>'+esc(m.term)+'</b> — '+esc(m.suggestion)+'</div>').join('')
-    : '';
-  $('outGaps').innerHTML = (r.gaps||[]).length
-    ? '<p class="hint" style="margin:0 0 4px">Gaps you can close — fastest honest fixes:</p>' +
-      r.gaps.map(g=>'<div class="miss"><b>'+esc(g.need)+'</b> — '+esc(g.fix)+(g.time?' <span class="muted">('+esc(g.time)+')</span>':'')+
-        (g.link?'<br><a href="'+esc(g.link)+'" target="_blank" rel="noopener" style="color:var(--brand)">Free course →</a>':'')+'</div>').join('')
-    : '';
+$('outTips').innerHTML = (r.tips||[]).length
+? '<p class="hint" style="margin:0 0 4px">💡 For this application:</p>' +
+r.tips.map(t=>'<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)">'+esc(t)+'</div>').join('') +
+'<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">'
+: '';
+$('outChanges').innerHTML = (r.changes||[]).map(c =>
+'<div class="chg"><b>'+esc(c.what)+'</b><span>'+esc(c.why)+'</span></div>').join('') || '<p class="muted">No changes listed.</p>';
+$('outKeywords').innerHTML = (r.keywords_added||[]).length
+? '<p class="hint" style="margin:0 0 4px">Keywords now in your resume:</p>' + r.keywords_added.map(k=>'<span class="kw">'+esc(k)+'</span>').join('')
+: '';
+$('outMissing').innerHTML = (r.missing_keywords||[]).length
+? '<p class="hint" style="margin:0 0 4px">Couldn’t honestly claim — nothing was made up:</p>' +
+r.missing_keywords.map(m=>'<div class="miss"><b>'+esc(m.term)+'</b> — '+esc(m.suggestion)+'</div>').join('')
+: '';
+$('outGaps').innerHTML = (r.gaps||[]).length
+? '<p class="hint" style="margin:0 0 4px">Gaps you can close — fastest honest fixes:</p>' +
+r.gaps.map(g=>'<div class="miss"><b>'+esc(g.need)+'</b> — '+esc(g.fix)+(g.time?' <span class="muted">('+esc(g.time)+')</span>':'')+
+(g.link?'<br><a href="'+esc(g.link)+'" target="_blank" rel="noopener" style="color:var(--brand)">Free course →</a>':'')+'</div>').join('')
+: '';
 
-  $('outAts').innerHTML = (r.ats_check||[]).map(c =>
-    '<li><span class="tick '+(c.pass?'ok':'no')+'">'+(c.pass?'✓':'!')+'</span><span><b>'+esc(c.item)+'</b><br><span class="muted">'+esc(c.note)+'</span></span></li>').join('');
+$('outAts').innerHTML = (r.ats_check||[]).map(c =>
+'<li><span class="tick '+(c.pass?'ok':'no')+'">'+(c.pass?'✓':'!')+'</span><span><b>'+esc(c.item)+'</b><br><span class="muted">'+esc(c.note)+'</span></span></li>').join('');
 
-  $('outNote').textContent = lastNote;
-  $('outLetter').textContent = lastLetter || '(This one didn’t come with a cover letter — tap Tailor again if you need one.)';
-  $('outFollowUp').textContent = lastFollowUp || '';
+$('outNote').textContent = lastNote;
+$('outLetter').textContent = lastLetter || '(This one didn’t come with a cover letter — tap Tailor again if you need one.)';
+$('outFollowUp').textContent = lastFollowUp || '';
 
-  // The kit is mandatory: when a result arrives without one (old entries,
-  // salvaged streams), build it from her real saved data — never invented.
-  const kit = (r.apply_kit && (r.apply_kit.answers || []).length) ? r.apply_kit : buildFallbackKit(r);
-  const kc = kit.contact || {};
-  const contactRows = [['Name', kc.name], ['Email', kc.email], ['Phone', kc.phone], ['Location', kc.location], ['LinkedIn', kc.linkedin]]
-    .filter(x => x[1]);
-  const answerRows = (kit.answers || []).filter(a => a && a.text).map(a => [a.label, a.text]);
-  // honest paste-ready visa answers, straight from her situation
-  const lv = r.location_visa || {};
-  const visaRows = [
-    lv.authorized_answer ? ['Are you authorized to work here?', lv.authorized_answer] : null,
-    lv.sponsorship_answer ? ['Do you need sponsorship?', lv.sponsorship_answer] : null,
-    lv.eor_note ? ['If they ask how to employ you', lv.eor_note] : null,
-  ].filter(Boolean);
-  const kitRows = [...contactRows, ...answerRows, ...visaRows];
-  $('outKit').innerHTML = kitRows.length
-    ? kitRows.map((x, i) =>
-        '<li><span style="flex:1;min-width:0"><b>'+esc(x[0])+'</b><br><span class="muted" style="word-wrap:break-word">'+esc(x[1])+'</span></span>'+
-        '<button class="btn small good" data-kit="'+i+'" style="flex:none">Copy</button></li>').join('')
-    : '<li><span class="muted">Tailor a job to fill this in (older entries don’t have a kit yet).</span></li>';
-  $('outKit')._data = kitRows;
+// The kit is mandatory: when a result arrives without one (old entries,
+// salvaged streams), build it from her real saved data — never invented.
+const kit = (r.apply_kit && (r.apply_kit.answers || []).length) ? r.apply_kit : buildFallbackKit(r);
+const kc = kit.contact || {};
+const contactRows = [['Name', kc.name], ['Email', kc.email], ['Phone', kc.phone], ['Location', kc.location], ['LinkedIn', kc.linkedin]]
+.filter(x => x[1]);
+const answerRows = (kit.answers || []).filter(a => a && a.text).map(a => [a.label, a.text]);
+// honest paste-ready visa answers, straight from her situation
+const lv = r.location_visa || {};
+const visaRows = [
+lv.authorized_answer ? ['Are you authorized to work here?', lv.authorized_answer] : null,
+lv.sponsorship_answer ? ['Do you need sponsorship?', lv.sponsorship_answer] : null,
+lv.eor_note ? ['If they ask how to employ you', lv.eor_note] : null,
+].filter(Boolean);
+const kitRows = [...contactRows, ...answerRows, ...visaRows];
+$('outKit').innerHTML = kitRows.length
+? kitRows.map((x, i) =>
+'<li><span style="flex:1;min-width:0"><b>'+esc(x[0])+'</b><br><span class="muted" style="word-wrap:break-word">'+esc(x[1])+'</span></span>'+
+'<button class="btn small good" data-kit="'+i+'" style="flex:none">Copy</button></li>').join('')
+: '<li><span class="muted">Tailor a job to fill this in (older entries don’t have a kit yet).</span></li>';
+$('outKit')._data = kitRows;
 
-  $('outQuestions').innerHTML = (r.screening_questions||[]).map(x =>
-    '<div class="chg"><b>❓ '+esc(x.q)+'</b><span>'+esc(x.answer || x.tip)+'</span></div>').join('')
-    || '<p class="muted">No predicted questions for this one.</p>';
+$('outQuestions').innerHTML = (r.screening_questions||[]).map(x =>
+'<div class="chg"><b>❓ '+esc(x.q)+'</b><span>'+esc(x.answer || x.tip)+'</span></div>').join('')
+|| '<p class="muted">No predicted questions for this one.</p>';
 
-  const loc = r.location_fit || {};
-  $('locationBanner').style.display = loc.note ? 'block' : 'none';
-  if (loc.note) {
-    const icon = loc.level === 'good' ? '🟢' : loc.level === 'blocked' ? '🔴' : '🟡';
-    const head = loc.level === 'good' ? 'Location: looks open to you'
-      : loc.level === 'blocked' ? 'Location problem — probably skip this one'
-      : 'Location: check before spending time';
-    $('locationBanner').style.borderColor = loc.level === 'good' ? 'rgba(31,169,113,.45)' : loc.level === 'blocked' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
-    $('locationBanner').style.background = loc.level === 'good' ? 'rgba(31,169,113,.08)' : loc.level === 'blocked' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
-    const lvVerdict = (r.location_visa && r.location_visa.verdict) || '';
-    $('locationBanner').innerHTML = '<b>' + icon + ' ' + head + '</b><br>' + esc(loc.note) +
-      (lvVerdict && lvVerdict !== loc.note ? '<br><span class="muted">' + esc(lvVerdict) + '</span>' : '');
-  }
+const loc = r.location_fit || {};
+$('locationBanner').style.display = loc.note ? 'block' : 'none';
+if (loc.note) {
+const icon = loc.level === 'good' ? '🟢' : loc.level === 'blocked' ? '🔴' : '🟡';
+const head = loc.level === 'good' ? 'Location: looks open to you'
+: loc.level === 'blocked' ? 'Location problem — probably skip this one'
+: 'Location: check before spending time';
+$('locationBanner').style.borderColor = loc.level === 'good' ? 'rgba(31,169,113,.45)' : loc.level === 'blocked' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
+$('locationBanner').style.background = loc.level === 'good' ? 'rgba(31,169,113,.08)' : loc.level === 'blocked' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
+const lvVerdict = (r.location_visa && r.location_visa.verdict) || '';
+$('locationBanner').innerHTML = '<b>' + icon + ' ' + head + '</b><br>' + esc(loc.note) +
+(lvVerdict && lvVerdict !== loc.note ? '<br><span class="muted">' + esc(lvVerdict) + '</span>' : '');
+}
 
-  const scam = r.scam_risk || {};
-  const risky = scam.level === 'high' || scam.level === 'medium';
-  $('scamBanner').style.display = risky ? 'block' : 'none';
-  if (risky) {
-    $('scamBanner').innerHTML = '<b>🚩 ' + (scam.level === 'high' ? 'This posting looks like it could be a scam.' : 'A couple of things about this posting look off.') + '</b><br>' +
-      (scam.reasons||[]).map(esc).join('<br>') +
-      '<br><span class="muted">Never pay for equipment or training, never deposit a check for an employer, and be wary of interviews held only in chat apps.</span>';
-  }
+const scam = r.scam_risk || {};
+const risky = scam.level === 'high' || scam.level === 'medium';
+$('scamBanner').style.display = risky ? 'block' : 'none';
+if (risky) {
+$('scamBanner').innerHTML = '<b>🚩 ' + (scam.level === 'high' ? 'This posting looks like it could be a scam.' : 'A couple of things about this posting look off.') + '</b><br>' +
+(scam.reasons||[]).map(esc).join('<br>') +
+'<br><span class="muted">Never pay for equipment or training, never deposit a check for an employer, and be wary of interviews held only in chat apps.</span>';
+}
 
-  $('results').scrollIntoView({behavior:'smooth'});
+$('results').scrollIntoView({behavior:'smooth'});
 }
 function clamp(n){ n = Math.round(Number(n)||0); return Math.max(0, Math.min(100, n)); }
 function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 $('baseSuggest').addEventListener('click', e => {
-  if (e.target.id !== 'baseSwitchBtn' || !window._baseSuggestion) return;
-  baseActive = window._baseSuggestion.index;
-  window._baseSuggestion = null;
-  refreshResumeUI();
-  $('baseSuggest').style.display = 'none';
-  $('jobInput').value = window._lastJobText || '';
-  if ($('jobInput').value) doTailor();
+if (e.target.id !== 'baseSwitchBtn' || !window._baseSuggestion) return;
+baseActive = window._baseSuggestion.index;
+window._baseSuggestion = null;
+refreshResumeUI();
+$('baseSuggest').style.display = 'none';
+$('jobInput').value = window._lastJobText || '';
+if ($('jobInput').value) doTailor();
 });
 
 // tabs
 $('tabs').addEventListener('click', e => {
-  const b = e.target.closest('.tab'); if (!b) return;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t===b));
-  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===b.dataset.pane));
+const b = e.target.closest('.tab'); if (!b) return;
+document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t===b));
+document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===b.dataset.pane));
 });
 
 // copy + downloads
 async function copy(text, label){
-  try { await navigator.clipboard.writeText(text); toast(label+' copied ✓'); }
-  catch {
-    const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
-    ta.select(); document.execCommand('copy'); ta.remove(); toast(label+' copied ✓');
-  }
+try { await navigator.clipboard.writeText(text); toast(label+' copied ✓'); }
+catch {
+const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+ta.select(); document.execCommand('copy'); ta.remove(); toast(label+' copied ✓');
+}
 }
 $('outKit').addEventListener('click', e => {
-  const b = e.target.closest('button[data-kit]'); if (!b) return;
-  const row = ($('outKit')._data || [])[Number(b.dataset.kit)];
-  if (row) copy(row[1], row[0]);
+const b = e.target.closest('button[data-kit]'); if (!b) return;
+const row = ($('outKit')._data || [])[Number(b.dataset.kit)];
+if (row) copy(row[1], row[0]);
 });
 function activateTab(paneId){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane===paneId));
-  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===paneId));
+document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane===paneId));
+document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===paneId));
 }
 // resume grabbed → the form answers are automatically the next step
 function showKitNext(){
-  setTimeout(()=>{ activateTab('paneKit'); toast('Next: the form answers — Copy each ⚡'); }, 900);
+setTimeout(()=>{ activateTab('paneKit'); toast('Next: the form answers — Copy each ⚡'); }, 900);
 }
 $('copyResumeBtn').onclick = ()=> { copy(lastResume, 'Resume'); showKitNext(); };
 $('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
 $('copyLetterBtn').onclick = ()=> copy(lastLetter, 'Cover letter');
 $('copyFollowUpBtn').onclick = ()=> copy(lastFollowUp, 'Follow-up');
 function fileName(ext){
-  // Recruiter-standard: Firstname-Lastname-Role.ext (+ company so her files stay sorted)
-  const clean = s => String(s||'').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'');
-  const parts = [clean(lastName), clean(lastTitle).slice(0,40) || 'Resume', clean(lastCompany).slice(0,30)].filter(Boolean);
-  return (parts.join('-') || 'Tailored-Resume') + ext;
+// Recruiter-standard: Firstname-Lastname-Role.ext (+ company so her files stay sorted)
+const clean = s => String(s||'').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'');
+const parts = [clean(lastName), clean(lastTitle).slice(0,40) || 'Resume', clean(lastCompany).slice(0,30)].filter(Boolean);
+return (parts.join('-') || 'Tailored-Resume') + ext;
 }
 // Real .docx (parses cleanly in every ATS), pre-built in the background after
 // each tailor so the tap is instant; Word-HTML fallback if the library fails.
 const docxCache = { text: '', blob: null };
 async function buildDocxBlob(text){
-  if (docxCache.text === text && docxCache.blob) return docxCache.blob;
-  if (!window.docx) await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
-  const D = window.docx;
-  const paras = [];
-  text.replace(/\r/g,'').split('\n').forEach((raw, idx) => {
-    const t = raw.trim();
-    if (!t) { paras.push(new D.Paragraph({ children: [], spacing: { after: 60 } })); return; }
-    const isName = idx === 0;
-    const isHeader = !isName && t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t) && !/[a-z@]/.test(t);
-    const isBullet = /^[-•]\s+/.test(t);
-    paras.push(new D.Paragraph({
-      children: [new D.TextRun({
-        text: isBullet ? t.replace(/^[-•]\s+/, '') : t,
-        bold: isName || isHeader,
-        size: isName ? 32 : isHeader ? 24 : 22,   // half-points: 16/12/11pt
-        font: 'Calibri',
-      })],
-      bullet: isBullet ? { level: 0 } : undefined,
-      spacing: { after: isHeader ? 80 : 40, before: isHeader ? 160 : 0 },
-    }));
-  });
-  const doc = new D.Document({ sections: [{ properties: {}, children: paras }] });
-  const blob = await D.Packer.toBlob(doc);
-  docxCache.text = text; docxCache.blob = blob;
-  return blob;
+if (docxCache.text === text && docxCache.blob) return docxCache.blob;
+if (!window.docx) await loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
+const D = window.docx;
+const paras = [];
+text.replace(/\r/g,'').split('\n').forEach((raw, idx) => {
+const t = raw.trim();
+if (!t) { paras.push(new D.Paragraph({ children: [], spacing: { after: 60 } })); return; }
+const isName = idx === 0;
+const isHeader = !isName && t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t) && !/[a-z@]/.test(t);
+const isBullet = /^[-•]\s+/.test(t);
+paras.push(new D.Paragraph({
+children: [new D.TextRun({
+text: isBullet ? t.replace(/^[-•]\s+/, '') : t,
+bold: isName || isHeader,
+size: isName ? 32 : isHeader ? 24 : 22,   // half-points: 16/12/11pt
+font: 'Calibri',
+})],
+bullet: isBullet ? { level: 0 } : undefined,
+spacing: { after: isHeader ? 80 : 40, before: isHeader ? 160 : 0 },
+}));
+});
+const doc = new D.Document({ sections: [{ properties: {}, children: paras }] });
+const blob = await D.Packer.toBlob(doc);
+docxCache.text = text; docxCache.blob = blob;
+return blob;
 }
 $('dlWordBtn').onclick = async ()=>{
-  const old = $('dlWordBtn').textContent;
-  $('dlWordBtn').textContent = '⬇️ Making it…';
-  try {
-    await download(await buildDocxBlob(lastResume), fileName('.docx'));
-  } catch {
-    const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
-      '<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
-      esc(lastResume) + '</body></html>';
-    await download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
-  }
-  $('dlWordBtn').textContent = old;
-  showKitNext();
+const old = $('dlWordBtn').textContent;
+$('dlWordBtn').textContent = '⬇️ Making it…';
+try {
+await download(await buildDocxBlob(lastResume), fileName('.docx'));
+} catch {
+const html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' +
+'<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35;white-space:pre-wrap}</style></head><body>' +
+esc(lastResume) + '</body></html>';
+await download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.doc'));
+}
+$('dlWordBtn').textContent = old;
+showKitNext();
 };
 // ---------- jobs feed: found for her, top 5 today, one tap tailors ----------
 function timeAgo(ts){
-  if (!isFinite(ts) || !ts) return 'new';
-  const h = Math.max(1, Math.round((Date.now() - ts) / 3600000));
-  if (h < 48) return 'posted ' + h + 'h ago';
-  return 'posted ' + Math.round(h/24) + ' days ago';
+if (!isFinite(ts) || !ts) return 'new';
+const h = Math.max(1, Math.round((Date.now() - ts) / 3600000));
+if (h < 48) return 'posted ' + h + 'h ago';
+return 'posted ' + Math.round(h/24) + ' days ago';
 }
 // salary string → rough €/month, for the visa chip (always labeled ≈ estimate)
 function salaryMonthly(sal){
-  if (!sal) return 0;
-  const c=String(sal).replace(/,/g,'');
-  const m = c.match(/(\d+(?:\.\d+)?)\s*k/i) || c.match(/(\d{4,6})/);
-  if (!m) return 0;
-  let n = Number(m[1]); if (/k/i.test(String(sal))) n *= 1000;
-  if (/\/\s?(month|mo)\b/i.test(String(sal)) || n < 8000) return Math.round(n);
-  return Math.round(n / 12);
+if (!sal) return 0;
+const c=String(sal).replace(/,/g,'');
+const m = c.match(/(\d+(?:\.\d+)?)\s*k/i) || c.match(/(\d{4,6})/);
+if (!m) return 0;
+let n = Number(m[1]); if (/k/i.test(String(sal))) n *= 1000;
+if (/\/\s?(month|mo)\b/i.test(String(sal)) || n < 8000) return Math.round(n);
+return Math.round(n / 12);
 }
 let feedAll = [], feedExpanded = false, feedMeta = {};
 function seenUrls(){ try{ return new Set(JSON.parse(store.read('rt_seen')||'[]')) }catch{ return new Set() } }
 // fit = server landability + overlap between the job title and her resume/synonyms
 function fitScore(j){
-  const resume = (store.read('rt_resume')||'').toLowerCase();
-  const syn = currentSettings().titleSynonyms.toLowerCase();
-  let s = Number(j.score)||0;
-  for (const w of (String(j.title).toLowerCase().match(/[a-z\u00e0-\u00ff]{4,}/g)||[])) {
-    if (syn.includes(w)) s += 2;
-    else if (resume.includes(w)) s += 0.7;
-  }
-  const days = (Date.now()-(j.ts||0))/86400000;
-  return s * (days<=1 ? 1.3 : days<=4 ? 1.15 : 1);      // fit × freshness
+const resume = (store.read('rt_resume')||'').toLowerCase();
+const syn = currentSettings().titleSynonyms.toLowerCase();
+let s = Number(j.score)||0;
+for (const w of (String(j.title).toLowerCase().match(/[a-z\u00e0-\u00ff]{4,}/g)||[])) {
+if (syn.includes(w)) s += 2;
+else if (resume.includes(w)) s += 0.7;
+}
+const days = (Date.now()-(j.ts||0))/86400000;
+return s * (days<=1 ? 1.3 : days<=4 ? 1.15 : 1);      // fit × freshness
 }
 function feedRows(jobs){
-  const seen = seenUrls();
-  const dnvNeed = currentSettings().dnvMonthly;
-  return jobs.map(j => {
-    const where = /anywhere|worldwide/i.test(j.location) ? 'Work from anywhere' : esc(j.location);
-    const isNew = !seen.has(j.url);
-    const fresh = j.ts && (Date.now()-j.ts) < 96*3600000;
-    const mo = salaryMonthly(j.salary);
-    const dnvChip = mo ? (mo >= dnvNeed
-      ? ' · <span style="color:var(--good)">≈€'+mo.toLocaleString('en')+'/mo — visa ✓</span>'
-      : ' · <span style="color:var(--warn)">≈€'+mo.toLocaleString('en')+'/mo — under visa need</span>') : '';
-    return '<button class="job-row" data-url="'+esc(j.url)+'">'+
-      '<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+
-      (fresh?' <span class="kw" style="font-size:.72rem;padding:2px 8px" title="'+esc(j.source||'')+'">⚡ apply now</span>':'')+'</b>'+
-      '<span class="meta"><b style="color:var(--ink)">'+esc(timeAgo(j.ts))+'</b> · '+esc(j.company)+' · '+where+
-      (j.kosovoOk?' · 🌍 Kosovo-OK':'')+(j.salary ? ' · '+esc(j.salary) : '')+dnvChip+'</span>'+
-    '</button>';
-  }).join('');
+const seen = seenUrls();
+const dnvNeed = currentSettings().dnvMonthly;
+return jobs.map(j => {
+const where = /anywhere|worldwide/i.test(j.location) ? 'Work from anywhere' : esc(j.location);
+const isNew = !seen.has(j.url);
+const fresh = j.ts && (Date.now()-j.ts) < 96*3600000;
+const mo = salaryMonthly(j.salary);
+const dnvChip = mo ? (mo >= dnvNeed
+? ' · <span style="color:var(--good)">≈€'+mo.toLocaleString('en')+'/mo — visa ✓</span>'
+: ' · <span style="color:var(--warn)">≈€'+mo.toLocaleString('en')+'/mo — under visa need</span>') : '';
+return '<button class="job-row" data-url="'+esc(j.url)+'">'+
+'<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+
+(fresh?' <span class="kw" style="font-size:.72rem;padding:2px 8px" title="'+esc(j.source||'')+'">⚡ apply now</span>':'')+'</b>'+
+'<span class="meta"><b style="color:var(--ink)">'+esc(timeAgo(j.ts))+'</b> · '+esc(j.company)+' · '+where+
+(j.kosovoOk?' · 🌍 Kosovo-OK':'')+(j.salary ? ' · '+esc(j.salary) : '')+dnvChip+'</span>'+
+'</button>';
+}).join('');
 }
 function markSeen(jobs){
-  try {
-    const s = seenUrls();
-    jobs.forEach(j => s.add(j.url));
-    store.write('rt_seen', JSON.stringify([...s].slice(-300)));
-  } catch {}
+try {
+const s = seenUrls();
+jobs.forEach(j => s.add(j.url));
+store.write('rt_seen', JSON.stringify([...s].slice(-300)));
+} catch {}
 }
 function googleJobsUrl(){
-  const syn = currentSettings().titleSynonyms.split(',')[0].trim() || 'customer support';
-  return 'https://www.google.com/search?q=' + encodeURIComponent('"' + syn + '" remote jobs') + '&ibp=htl;jobs';
+const syn = currentSettings().titleSynonyms.split(',')[0].trim() || 'customer support';
+return 'https://www.google.com/search?q=' + encodeURIComponent('"' + syn + '" remote jobs') + '&ibp=htl;jobs';
 }
 function paintFeed(){
-  feedAll.sort((a,b)=>fitScore(b)-fitScore(a));
-  const top = feedExpanded ? feedAll : feedAll.slice(0, 5);
-  let note = '';
-  if (feedMeta.stale) note = '<p class="muted">⚠️ Live refresh failed — this is the saved feed ('+esc(timeAgo(feedMeta.updated).replace('posted ',''))+').</p>';
-  else if ((feedMeta.down||[]).length) note = '<p class="muted">Some sources didn’t answer ('+esc(feedMeta.down.slice(0,3).join(', '))+(feedMeta.down.length>3?'…':'')+') — showing the rest.</p>';
-  $('feedList').innerHTML = note + feedRows(top) +
-    (!feedExpanded && feedAll.length > 5 ? '<p class="muted" style="margin:10px 0 0">Your top 5 today — a few great applications beat many rushed ones. “More jobs” shows the rest.</p>' : '') +
-    '<p style="margin:10px 0 0"><a class="btn small" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(googleJobsUrl())+'">🔍 Also search Google Jobs</a> <span class="muted" style="font-size:.8rem">fills roles ≈3× better than LinkedIn</span></p>';
+feedAll.sort((a,b)=>fitScore(b)-fitScore(a));
+const top = feedExpanded ? feedAll : feedAll.slice(0, 5);
+let note = '';
+if (feedMeta.stale) note = '<p class="muted">⚠️ Live refresh failed — this is the saved feed ('+esc(timeAgo(feedMeta.updated).replace('posted ',''))+').</p>';
+else if ((feedMeta.down||[]).length) note = '<p class="muted">Some sources didn’t answer ('+esc(feedMeta.down.slice(0,3).join(', '))+(feedMeta.down.length>3?'…':'')+') — showing the rest.</p>';
+$('feedList').innerHTML = note + feedRows(top) +
+(!feedExpanded && feedAll.length > 5 ? '<p class="muted" style="margin:10px 0 0">Your top 5 today — a few great applications beat many rushed ones. “More jobs” shows the rest.</p>' : '') +
+'<p style="margin:10px 0 0"><a class="btn small" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(googleJobsUrl())+'">🔍 Also search Google Jobs</a> <span class="muted" style="font-size:.8rem">fills roles ≈3× better than LinkedIn</span></p>';
 }
 async function loadFeed(){
-  feedExpanded = false;
-  try {
-    const cached = JSON.parse(store.read('rt_feed') || 'null');
-    if (cached && cached.length && cached[0].ts) { feedAll = cached; paintFeed(); }
-    else $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
-  } catch { $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>'; }
-  try {
-    const syn = encodeURIComponent(currentSettings().titleSynonyms);
-    const r = await fetch(API_BASE + '/api/jobs?syn=' + syn);
-    const d = await r.json();
-    if (!d.jobs || !d.jobs.length) throw new Error(d.message || 'empty');
-    feedAll = d.jobs; feedMeta = { down: d.down, stale: d.stale, updated: d.updated };
-    store.write('rt_feed', JSON.stringify(feedAll));
-    paintFeed();
-    setTimeout(()=> markSeen(feedAll), 4000);   // dots show this visit, gone next
-  } catch (e) {
-    if (!feedAll.length) $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now ('+esc(e.message||'network')+'). Paste a job link below — that still works — or try 🔄 again in a minute.</p>';
-  }
+feedExpanded = false;
+try {
+const cached = JSON.parse(store.read('rt_feed') || 'null');
+if (cached && cached.length && cached[0].ts) { feedAll = cached; paintFeed(); }
+else $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
+} catch { $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>'; }
+try {
+const syn = encodeURIComponent(currentSettings().titleSynonyms);
+const r = await fetch(API_BASE + '/api/jobs?syn=' + syn);
+const d = await r.json();
+if (!d.jobs || !d.jobs.length) throw new Error(d.message || 'empty');
+feedAll = d.jobs; feedMeta = { down: d.down, stale: d.stale, updated: d.updated };
+store.write('rt_feed', JSON.stringify(feedAll));
+paintFeed();
+setTimeout(()=> markSeen(feedAll), 4000);   // dots show this visit, gone next
+} catch (e) {
+if (feedAll.length) { feedMeta.stale = true; paintFeed(); }
+else $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now ('+esc(e.message||'network')+'). Paste a job link below — that still works — or try 🔄 again in a minute.</p>';
+}
 }
 $('feedList').addEventListener('click', e => {
-  const b = e.target.closest('button[data-url]'); if (!b) return;
-  $('jobInput').value = b.dataset.url;
-  window._jobFromFeed = true;
-  doTailor();
-  window.scrollTo({top: $('loadingMsg').offsetTop - 160, behavior: 'smooth'});
+const b = e.target.closest('button[data-url]'); if (!b) return;
+$('jobInput').value = b.dataset.url;
+window._jobFromFeed = true;
+doTailor();
+window.scrollTo({top: $('loadingMsg').offsetTop - 160, behavior: 'smooth'});
 });
 $('feedRefresh').onclick = () => {
-  if (!feedExpanded && feedAll.length > 5) { feedExpanded = true; paintFeed(); }
-  else loadFeed();
+if (!feedExpanded && feedAll.length > 5) { feedExpanded = true; paintFeed(); }
+else loadFeed();
 };
 loadFeed();
 // Telegram digest deep link: ?job=<url> arrives pre-loaded and starts tailoring
 (() => {
-  try {
-    const u = new URLSearchParams(location.search).get('job');
-    if (u && looksLikeUrl(u)) {
-      $('jobInput').value = u;
-      history.replaceState(null, '', location.pathname);
-      if ((store.read('rt_resume')||'').length > 100) setTimeout(doTailor, 600);
-    }
-  } catch {}
+try {
+const u = new URLSearchParams(location.search).get('job');
+if (u && looksLikeUrl(u)) {
+$('jobInput').value = u;
+history.replaceState(null, '', location.pathname);
+if ((store.read('rt_resume')||'').length > 100) setTimeout(doTailor, 600);
+}
+} catch {}
 })();
 
 // ---------- applications: tracking, reminders, outreach, sync, proof ----------
@@ -1277,405 +1308,405 @@ function writeHistory(h){ store.write('rt_history', JSON.stringify(h.slice(0, 50
 function touch(e){ e.updatedAt = Date.now(); }
 // migrate old entries (followedUpAt → fu1At, add status)
 (() => {
-  const h = readHistory(); let changed=false;
-  for (const e of h){
-    if (e.followedUpAt && !e.fu1At){ e.fu1At = e.followedUpAt; delete e.followedUpAt; changed=true; }
-    if (e.appliedAt && !e.status){ e.status='applied'; changed=true; }
-  }
-  if (changed) store.write('rt_history', JSON.stringify(h));
+const h = readHistory(); let changed=false;
+for (const e of h){
+if (e.followedUpAt && !e.fu1At){ e.fu1At = e.followedUpAt; delete e.followedUpAt; changed=true; }
+if (e.appliedAt && !e.status){ e.status='applied'; changed=true; }
+}
+if (changed) store.write('rt_history', JSON.stringify(h));
 })();
 function saveHistory(r){
-  const h = readHistory();
-  currentHistId = Date.now();
-  h.unshift({
-    when: currentHistId, label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job',
-    company: r.company||'', title: r.job_title||'', url: r.job_url||'',
-    source: r._fromFeed ? 'feed' : 'pasted',
-    score: r.match_after ?? null, dnv: (r.dnv_fit && r.dnv_fit.status) || '',
-    noteLen: String(r.cover_note||'').split(/\s+/).filter(Boolean).length,
-    status: 'tailored', updatedAt: Date.now(), result: r,
-  });
-  writeHistory(h);
-  renderHistory(); renderDue(); refreshAppliedBtn();
+const h = readHistory();
+currentHistId = Date.now();
+h.unshift({
+when: currentHistId, label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job',
+company: r.company||'', title: r.job_title||'', url: r.job_url||'',
+source: r._fromFeed ? 'feed' : 'pasted',
+score: r.match_after ?? null, dnv: (r.dnv_fit && r.dnv_fit.status) || '',
+noteLen: String(r.cover_note||'').split(/\s+/).filter(Boolean).length,
+status: 'tailored', updatedAt: Date.now(), result: r,
+});
+writeHistory(h);
+renderHistory(); renderDue(); refreshAppliedBtn();
 }
 function entryById(id){ return readHistory().find(e => e.when === id); }
 function updateEntry(id, fn){
-  const h = readHistory(); const e = h.find(x=>x.when===id); if(!e) return;
-  fn(e); touch(e); writeHistory(h);
-  renderHistory(); renderDue(); refreshAppliedBtn(); renderDnvClock(); renderStats();
+const h = readHistory(); const e = h.find(x=>x.when===id); if(!e) return;
+fn(e); touch(e); writeHistory(h);
+renderHistory(); renderDue(); refreshAppliedBtn(); renderDnvClock(); renderStats();
 }
 
 // ---- due engine: outreach day 3, follow-up day 7 and 14, then archive
 const DAY = 86400000;
 function dueItems(){
-  const now = Date.now(); const out = [];
-  const h = readHistory(); let autoArchived = false;
-  h.forEach((e,i)=>{
-    if (!e.appliedAt || !['applied','replied'].includes(e.status||'')) {
-      if (e.appliedAt && e.status==='applied') {} // fallthrough below
-    }
-    if (!e.appliedAt) return;
-    if (e.status !== 'applied') return;
-    const age = now - e.appliedAt;
-    if (age >= 21*DAY && e.fu2At){ e.status='no response'; touch(e); autoArchived = true; return; }
-    if (age >= 3*DAY && !e.outreachAt) out.push({e,i,type:'outreach'});
-    else if (age >= 7*DAY && !e.fu1At) out.push({e,i,type:'fu1'});
-    else if (age >= 14*DAY && e.fu1At && !e.fu2At) out.push({e,i,type:'fu2'});
-  });
-  if (autoArchived) store.write('rt_history', JSON.stringify(h));
-  return out;
+const now = Date.now(); const out = [];
+const h = readHistory(); let autoArchived = false;
+h.forEach((e,i)=>{
+if (!e.appliedAt || !['applied','replied'].includes(e.status||'')) {
+if (e.appliedAt && e.status==='applied') {} // fallthrough below
+}
+if (!e.appliedAt) return;
+if (e.status !== 'applied') return;
+const age = now - e.appliedAt;
+if (age >= 21*DAY && e.fu2At){ e.status='no response'; touch(e); autoArchived = true; return; }
+if (age >= 3*DAY && !e.outreachAt) out.push({e,i,type:'outreach'});
+else if (age >= 7*DAY && !e.fu1At) out.push({e,i,type:'fu1'});
+else if (age >= 14*DAY && e.fu1At && !e.fu2At) out.push({e,i,type:'fu2'});
+});
+if (autoArchived) store.write('rt_history', JSON.stringify(h));
+return out;
 }
 
 // ---- pre-written emails (honest, short; she always taps send herself)
 function outreachEmail(e){
-  const t = e.title || (e.result&&e.result.job_title) || 'the role';
-  const c = e.company || (e.result&&e.result.company) || '';
-  const n = (e.result&&e.result.candidate_name) || '';
-  const hook = (e.result && e.result.cover_note || '').split(/(?<=[.!?])\s+/)[0] || '';
-  const body = 'Hi' + ' — I applied for the ' + t + ' position a few days ago and wanted to reach out directly. '
-    + (hook ? hook + ' ' : '')
-    + 'I\u2019d be glad to share anything else that helps you decide. Either way, thanks for reading this far.\n\n'
-    + n;
-  return { subject: 'Quick note about my ' + t + ' application' + (c?' — '+c:''), body,
-    note: 'Find the hiring manager\u2019s name on the posting or the company\u2019s LinkedIn/team page, and add one line with their name. If you can\u2019t find an email, send it through the application portal\u2019s message box.' };
+const t = e.title || (e.result&&e.result.job_title) || 'the role';
+const c = e.company || (e.result&&e.result.company) || '';
+const n = (e.result&&e.result.candidate_name) || '';
+const hook = (e.result && e.result.cover_note || '').split(/(?<=[.!?])\s+/)[0] || '';
+const body = 'Hi' + ' — I applied for the ' + t + ' position a few days ago and wanted to reach out directly. '
++ (hook ? hook + ' ' : '')
++ 'I\u2019d be glad to share anything else that helps you decide. Either way, thanks for reading this far.\n\n'
++ n;
+return { subject: 'Quick note about my ' + t + ' application' + (c?' — '+c:''), body,
+note: 'Find the hiring manager\u2019s name on the posting or the company\u2019s LinkedIn/team page, and add one line with their name. If you can\u2019t find an email, send it through the application portal\u2019s message box.' };
 }
 function followUpEmail(e, second){
-  const r = e.result || {};
-  const t = e.title || r.job_title || 'the role', c = e.company || r.company || '', n = r.candidate_name || '';
-  const when = new Date(e.appliedAt || e.when).toLocaleDateString(undefined,{month:'long',day:'numeric'});
-  const body = (!second && r.follow_up && r.follow_up.length > 30) ? r.follow_up
-    : 'Hi' + (c ? ' ' + c + ' team' : '') + ',\n\n'
-      + (second
-        ? 'Checking in one last time on my ' + t + ' application from ' + when + ' \u2014 still very interested. If the role is filled, no reply needed; I\u2019ll take silence as a no and wish you a great hire.\n\n'
-        : 'I applied for the ' + t + ' position on ' + when + ' and wanted to check in \u2014 I\u2019m still really interested. If there\u2019s any update on timing, I\u2019d love to hear it.\n\n')
-      + 'Thanks,\n' + n;
-  return { subject: (second?'Last check-in \u2014 ':'Following up \u2014 ') + t + (c ? ' at ' + c : ''), body };
+const r = e.result || {};
+const t = e.title || r.job_title || 'the role', c = e.company || r.company || '', n = r.candidate_name || '';
+const when = new Date(e.appliedAt || e.when).toLocaleDateString(undefined,{month:'long',day:'numeric'});
+const body = (!second && r.follow_up && r.follow_up.length > 30) ? r.follow_up
+: 'Hi' + (c ? ' ' + c + ' team' : '') + ',\n\n'
++ (second
+? 'Checking in one last time on my ' + t + ' application from ' + when + ' \u2014 still very interested. If the role is filled, no reply needed; I\u2019ll take silence as a no and wish you a great hire.\n\n'
+: 'I applied for the ' + t + ' position on ' + when + ' and wanted to check in \u2014 I\u2019m still really interested. If there\u2019s any update on timing, I\u2019d love to hear it.\n\n')
++ 'Thanks,\n' + n;
+return { subject: (second?'Last check-in \u2014 ':'Following up \u2014 ') + t + (c ? ' at ' + c : ''), body };
 }
 function mailtoFor(subject, body, to){
-  return 'mailto:' + (to||'') + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+return 'mailto:' + (to||'') + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
 }
 function gcalFor(label, whenTs, body){
-  const due = new Date(whenTs); due.setHours(9,0,0,0);
-  const end = new Date(due.getTime() + 30*60000);
-  const fmt = d => d.toISOString().replace(/[-:]|\.\d{3}/g,'');
-  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    + '&text=' + encodeURIComponent(label)
-    + '&dates=' + fmt(due) + '/' + fmt(end)
-    + '&details=' + encodeURIComponent((body||'') + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
+const due = new Date(whenTs); due.setHours(9,0,0,0);
+const end = new Date(due.getTime() + 30*60000);
+const fmt = d => d.toISOString().replace(/[-:]|\.\d{3}/g,'');
+return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
++ '&text=' + encodeURIComponent(label)
++ '&dates=' + fmt(due) + '/' + fmt(end)
++ '&details=' + encodeURIComponent((body||'') + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
 }
 
 // ---- proof to Parker: one tap = email with the record (attach a screenshot)
 function proofEmail(e){
-  const d = ts => ts ? new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
-  const body = 'Applied \u2713\n\nJob: ' + (e.title||e.label) + '\nCompany: ' + (e.company||'?')
-    + '\nApplied: ' + d(e.appliedAt || Date.now())
-    + (e.url ? '\nPosting: ' + e.url : '')
-    + (e.score!=null ? '\nMatch score: ' + e.score + '%' : '')
-    + (e.dnv ? '\nVisa income check: ' + e.dnv : '')
-    + '\n\n(Screenshot of the confirmation page attached.)'
-    + '\n\nFull list: ' + API_BASE + '/api/apps?code=' + encodeURIComponent(store.read('rt_code')) + '&view=html';
-  return mailtoFor('\u2705 Applied: ' + (e.title||e.label) + (e.company?' @ '+e.company:''), body, PARKER_EMAIL);
+const d = ts => ts ? new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+const body = 'Applied \u2713\n\nJob: ' + (e.title||e.label) + '\nCompany: ' + (e.company||'?')
++ '\nApplied: ' + d(e.appliedAt || Date.now())
++ (e.url ? '\nPosting: ' + e.url : '')
++ (e.score!=null ? '\nMatch score: ' + e.score + '%' : '')
++ (e.dnv ? '\nVisa income check: ' + e.dnv : '')
++ '\n\n(Screenshot of the confirmation page attached.)'
++ '\n\nFull list: ' + API_BASE + '/api/apps?code=' + encodeURIComponent(store.read('rt_code')) + '&view=html';
+return mailtoFor('\u2705 Applied: ' + (e.title||e.label) + (e.company?' @ '+e.company:''), body, PARKER_EMAIL);
 }
 
 // ---- KV sync: records survive a cleared browser; Parker can verify
 let syncTimer = null;
 function slimApp(e){
-  const r = e.result || {};
-  return { id: e.when, label: e.label, company: e.company||r.company||'', title: e.title||r.job_title||'',
-    url: e.url||r.job_url||'', source: e.source||'pasted', contact: e.contact||'',
-    appliedAt: e.appliedAt||null, outreachAt: e.outreachAt||null, fu1At: e.fu1At||null, fu2At: e.fu2At||null,
-    proofAt: e.proofAt||null, status: e.status||'tailored', startedAt: e.startedAt||null,
-    repliedAt: e.repliedAt||null, interviewAt: e.interviewAt||null, noteLen: e.noteLen||null,
-    score: e.score ?? r.match_after ?? null, dnv: e.dnv||'',
-    resume: (r.tailored_resume||'').slice(0,6000), cover_note: (r.cover_note||'').slice(0,2000),
-    updatedAt: e.updatedAt||e.when };
+const r = e.result || {};
+return { id: e.when, label: e.label, company: e.company||r.company||'', title: e.title||r.job_title||'',
+url: e.url||r.job_url||'', source: e.source||'pasted', contact: e.contact||'',
+appliedAt: e.appliedAt||null, outreachAt: e.outreachAt||null, fu1At: e.fu1At||null, fu2At: e.fu2At||null,
+proofAt: e.proofAt||null, status: e.status||'tailored', startedAt: e.startedAt||null,
+repliedAt: e.repliedAt||null, interviewAt: e.interviewAt||null, noteLen: e.noteLen||null,
+score: e.score ?? r.match_after ?? null, dnv: e.dnv||'',
+resume: (r.tailored_resume||'').slice(0,6000), cover_note: (r.cover_note||'').slice(0,2000),
+updatedAt: e.updatedAt||e.when };
 }
 function scheduleSync(){ clearTimeout(syncTimer); syncTimer = setTimeout(syncApps, 1500); }
 async function syncApps(retry){
-  const code = store.read('rt_code'); if (!code) return;
-  const apps = readHistory().filter(e=>e.appliedAt || e.status!=='tailored').map(slimApp);
-  if (!apps.length) return;
-  try {
-    const r = await fetch(API_BASE + '/api/apps', { method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ accessCode: code, apps }) });
-    const d = await r.json();
-    if (d && d.saved) { $('syncStatus').textContent = '☁️ saved (' + d.count + ')'; return; }
-    throw new Error(d.message||'sync failed');
-  } catch (err) {
-    if ((retry||0) < 3) setTimeout(()=>syncApps((retry||0)+1), 15000 * ((retry||0)+1));
-    else $('syncStatus').textContent = '⚠️ not saved to cloud yet — will retry next visit';
-  }
+const code = store.read('rt_code'); if (!code) return;
+const apps = readHistory().filter(e=>e.appliedAt || e.status!=='tailored').map(slimApp);
+if (!apps.length) return;
+try {
+const r = await fetch(API_BASE + '/api/apps', { method:'POST', headers:{'content-type':'application/json'},
+body: JSON.stringify({ accessCode: code, apps }) });
+const d = await r.json();
+if (d && d.saved) { $('syncStatus').textContent = '☁️ saved (' + d.count + ')'; return; }
+throw new Error(d.message||'sync failed');
+} catch (err) {
+if ((retry||0) < 3) setTimeout(()=>syncApps((retry||0)+1), 15000 * ((retry||0)+1));
+else $('syncStatus').textContent = '⚠️ not saved to cloud yet — will retry next visit';
+}
 }
 async function pullApps(){
-  const code = store.read('rt_code'); if (!code) return;
-  try {
-    const r = await fetch(API_BASE + '/api/apps?code=' + encodeURIComponent(code));
-    const d = await r.json(); if (!d.apps) return;
-    const h = readHistory(); const byId = new Map(h.map(e=>[e.when,e])); let changed=false;
-    for (const a of d.apps){
-      const local = byId.get(a.id);
-      if (local){
-        if ((a.updatedAt||0) > (local.updatedAt||0)){
-          Object.assign(local, {appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
-            proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, contact:a.contact, updatedAt:a.updatedAt,
-            repliedAt:a.repliedAt, interviewAt:a.interviewAt, noteLen:a.noteLen});
-          changed=true;
-        }
-      } else {
-        h.push({ when:a.id, label:a.label, company:a.company, title:a.title, url:a.url, source:a.source,
-          contact:a.contact, appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
-          proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, score:a.score, dnv:a.dnv,
-          updatedAt:a.updatedAt, result:{ tailored_resume:a.resume, cover_note:a.cover_note,
-            job_title:a.title, company:a.company, match_after:a.score } });
-        changed=true;
-      }
-    }
-    if (changed){ h.sort((a,b)=>b.when-a.when); store.write('rt_history', JSON.stringify(h.slice(0,50)));
-      renderHistory(); renderDue(); renderDnvClock(); }
-  } catch {}
+const code = store.read('rt_code'); if (!code) return;
+try {
+const r = await fetch(API_BASE + '/api/apps?code=' + encodeURIComponent(code));
+const d = await r.json(); if (!d.apps) return;
+const h = readHistory(); const byId = new Map(h.map(e=>[e.when,e])); let changed=false;
+for (const a of d.apps){
+const local = byId.get(a.id);
+if (local){
+if ((a.updatedAt||0) > (local.updatedAt||0)){
+Object.assign(local, {appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
+proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, contact:a.contact, updatedAt:a.updatedAt,
+repliedAt:a.repliedAt, interviewAt:a.interviewAt, noteLen:a.noteLen});
+changed=true;
+}
+} else {
+h.push({ when:a.id, label:a.label, company:a.company, title:a.title, url:a.url, source:a.source,
+contact:a.contact, appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
+proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, score:a.score, dnv:a.dnv,
+updatedAt:a.updatedAt, result:{ tailored_resume:a.resume, cover_note:a.cover_note,
+job_title:a.title, company:a.company, match_after:a.score } });
+changed=true;
+}
+}
+if (changed){ h.sort((a,b)=>b.when-a.when); store.write('rt_history', JSON.stringify(h.slice(0,50)));
+renderHistory(); renderDue(); renderDnvClock(); }
+} catch {}
 }
 
 // ---- applied button on the result card
 function refreshAppliedBtn(){
-  const e = currentHistId && entryById(currentHistId);
-  const b = $('appliedBtn');
-  if (!e) { b.style.display = 'none'; $('resultFu').innerHTML = ''; return; }
-  b.style.display = 'inline-block';
-  if (e.appliedAt) {
-    b.textContent = '✓ Applied ' + new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-    b.classList.add('good');
-  } else {
-    b.textContent = '✅ I applied — track it';
-    b.classList.remove('good');
-  }
-  $('resultFu').innerHTML = e.appliedAt ? postApplyRow(e) : '';
+const e = currentHistId && entryById(currentHistId);
+const b = $('appliedBtn');
+if (!e) { b.style.display = 'none'; $('resultFu').innerHTML = ''; return; }
+b.style.display = 'inline-block';
+if (e.appliedAt) {
+b.textContent = '✓ Applied ' + new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+b.classList.add('good');
+} else {
+b.textContent = '✅ I applied — track it';
+b.classList.remove('good');
+}
+$('resultFu').innerHTML = e.appliedAt ? postApplyRow(e) : '';
 }
 function postApplyRow(e){
-  const idx = readHistory().findIndex(x => x.when === e.when);
-  return '<div class="row" style="margin-top:8px">'+
-    '<a class="btn small good" data-proof="'+idx+'" href="'+esc(proofEmail(e))+'">📸 Proof to Parker</a>'+
-    '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Email hiring manager: '+(e.label||''), (e.appliedAt||Date.now())+3*DAY, outreachEmail(e).body))+'">🔔 Day-3 reminder</a>'+
-    '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Follow up: '+(e.label||''), (e.appliedAt||Date.now())+7*DAY, followUpEmail(e).body))+'">🔔 Day-7 reminder</a>'+
-  '</div>';
+const idx = readHistory().findIndex(x => x.when === e.when);
+return '<div class="row" style="margin-top:8px">'+
+'<a class="btn small good" data-proof="'+idx+'" href="'+esc(proofEmail(e))+'">📸 Proof</a>'+
+'<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Email hiring manager: '+(e.label||''), (e.appliedAt||Date.now())+3*DAY, outreachEmail(e).body))+'">🔔 Day-3 reminder</a>'+
+'<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Follow up: '+(e.label||''), (e.appliedAt||Date.now())+7*DAY, followUpEmail(e).body))+'">🔔 Day-7 reminder</a>'+
+'</div>';
 }
 $('resultFu').addEventListener('click', ev => {
-  const p = ev.target.closest('a[data-proof]');
-  if (p) setTimeout(()=>{ updateEntry(currentHistId, e=>{ e.proofAt = Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
+const p = ev.target.closest('a[data-proof]');
+if (p) setTimeout(()=>{ updateEntry(currentHistId, e=>{ e.proofAt = Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
 });
 $('appliedBtn').onclick = () => {
-  const e = entryById(currentHistId); if (!e) return;
-  updateEntry(currentHistId, x => {
-    if (x.appliedAt){ x.appliedAt = null; x.status = 'tailored'; }
-    else { x.appliedAt = Date.now(); x.status = 'applied'; }
-  });
-  const now = entryById(currentHistId);
-  if (now && now.appliedAt) {
-    toast('Good luck! 🍀 Reminders set: day 3, 7 and 14');
-    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
-  }
+const e = entryById(currentHistId); if (!e) return;
+updateEntry(currentHistId, x => {
+if (x.appliedAt){ x.appliedAt = null; x.status = 'tailored'; }
+else { x.appliedAt = Date.now(); x.status = 'applied'; }
+});
+const now = entryById(currentHistId);
+if (now && now.appliedAt) {
+toast('Good luck! 🍀 Reminders set: day 3, 7 and 14');
+try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
+}
 };
 
 // ---- rendering
 function statusLabel(e){
-  const d = ts => new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-  if (!e.appliedAt) return 'Not applied yet';
-  let out = '✓ Applied ' + d(e.appliedAt);
-  if (e.status && e.status !== 'applied') out += ' · ' + e.status;
-  if (e.proofAt) out += ' · 📸 proof sent';
-  return out;
+const d = ts => new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+if (!e.appliedAt) return 'Not applied yet';
+let out = '✓ Applied ' + d(e.appliedAt);
+if (e.status && e.status !== 'applied') out += ' · ' + e.status;
+if (e.proofAt) out += ' · 📸 proof sent';
+return out;
 }
 function dueRow(item){
-  const {e, i, type} = item;
-  const kind = type==='outreach' ? {label:'✉️ Email the hiring manager', mail: outreachEmail(e), field:'outreachAt'}
-    : type==='fu1' ? {label:'✉️ Follow-up (1 week)', mail: followUpEmail(e), field:'fu1At'}
-    : {label:'✉️ Last follow-up (2 weeks)', mail: followUpEmail(e, true), field:'fu2At'};
-  return '<div class="job-row"><b>'+esc(e.label)+'</b>'+
-    '<span class="meta">'+kind.label+(kind.mail.note?' · '+esc(kind.mail.note):'')+'</span>'+
-    '<div class="row" style="margin-top:8px">'+
-      '<a class="btn small good" data-due="'+e.when+'" data-field="'+kind.field+'" href="'+esc(mailtoFor(kind.mail.subject, kind.mail.body, e.contact||''))+'">✉️ Open the email</a>'+
-      '<button class="btn small" data-skip="'+e.when+'" data-field="'+kind.field+'">Skip</button>'+
-    '</div></div>';
+const {e, i, type} = item;
+const kind = type==='outreach' ? {label:'✉️ Email the hiring manager', mail: outreachEmail(e), field:'outreachAt'}
+: type==='fu1' ? {label:'✉️ Follow-up (1 week)', mail: followUpEmail(e), field:'fu1At'}
+: {label:'✉️ Last follow-up (2 weeks)', mail: followUpEmail(e, true), field:'fu2At'};
+return '<div class="job-row"><b>'+esc(e.label)+'</b>'+
+'<span class="meta">'+kind.label+(kind.mail.note?' · '+esc(kind.mail.note):'')+'</span>'+
+'<div class="row" style="margin-top:8px">'+
+'<a class="btn small good" data-due="'+e.when+'" data-field="'+kind.field+'" href="'+esc(mailtoFor(kind.mail.subject, kind.mail.body, e.contact||''))+'">✉️ Open the email</a>'+
+'<button class="btn small" data-skip="'+e.when+'" data-field="'+kind.field+'">Skip</button>'+
+'</div></div>';
 }
 function renderDue(){
-  const due = dueItems();
-  $('dueCard').style.display = due.length ? 'block' : 'none';
-  $('dueList').innerHTML = due.slice(0,4).map(dueRow).join('');
+const due = dueItems();
+$('dueCard').style.display = due.length ? 'block' : 'none';
+$('dueList').innerHTML = due.slice(0,4).map(dueRow).join('');
 }
 function dueClick(ev){
-  const send = ev.target.closest('a[data-due]');
-  if (send){ const id=Number(send.dataset.due), f=send.dataset.field;
-    setTimeout(()=>{ updateEntry(id, e=>{ e[f]=Date.now(); }); toast('Marked as sent ✓'); }, 600); return; }
-  const skip = ev.target.closest('button[data-skip]');
-  if (skip){ const id=Number(skip.dataset.skip), f=skip.dataset.field;
-    updateEntry(id, e=>{ e[f]=Date.now(); e[f+'Skipped']=true; }); toast('Skipped'); return; }
-  const b = ev.target.closest('[data-i]'); if (!b) return;
-  const entry = readHistory()[Number(b.dataset.i)];
-  if (entry && entry.result) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
+const send = ev.target.closest('a[data-due]');
+if (send){ const id=Number(send.dataset.due), f=send.dataset.field;
+setTimeout(()=>{ updateEntry(id, e=>{ e[f]=Date.now(); }); toast('Marked as sent ✓'); }, 600); return; }
+const skip = ev.target.closest('button[data-skip]');
+if (skip){ const id=Number(skip.dataset.skip), f=skip.dataset.field;
+updateEntry(id, e=>{ e[f]=Date.now(); e[f+'Skipped']=true; }); toast('Skipped'); return; }
+const b = ev.target.closest('[data-i]'); if (!b) return;
+const entry = readHistory()[Number(b.dataset.i)];
+if (entry && entry.result) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
 }
 function renderHistory(){
-  const h = readHistory();
-  $('historyCard').style.display = h.length ? 'block' : 'none';
-  $('historyList').innerHTML = h.map((e,i)=>{
-    const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-    const pct = e.score != null ? clamp(e.score)+'% · ' : '';
-    const sel = e.appliedAt ? '<select class="sel" data-status="'+i+'" style="margin-top:6px;font-size:.85rem;padding:8px 10px">'+
-      STATUSES.map(s=>'<option'+((e.status||'applied')===s?' selected':'')+'>'+s+'</option>').join('')+'</select>' : '';
-    const proof = e.appliedAt && !e.proofAt ? '<a class="btn small" style="margin-top:6px;text-decoration:none" data-proofh="'+i+'" href="'+esc(proofEmail(e))+'">📸 Proof to Parker</a>' : '';
-    return '<div class="job-row">'+
-      '<button class="rowmain" data-i="'+i+'">'+
-        '<b>'+esc(e.label)+'</b>'+
-        '<span class="meta">'+when+' · '+pct+esc(statusLabel(e))+'</span></button>'+
-      '<div class="row">'+sel+proof+'</div>'+
-    '</div>';
-  }).join('');
+const h = readHistory();
+$('historyCard').style.display = h.length ? 'block' : 'none';
+$('historyList').innerHTML = h.map((e,i)=>{
+const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+const pct = e.score != null ? clamp(e.score)+'% · ' : '';
+const sel = e.appliedAt ? '<select class="sel" data-status="'+i+'" style="margin-top:6px;font-size:.85rem;padding:8px 10px">'+
+STATUSES.map(s=>'<option'+((e.status||'applied')===s?' selected':'')+'>'+s+'</option>').join('')+'</select>' : '';
+const proof = e.appliedAt && !e.proofAt ? '<a class="btn small" style="margin-top:6px;text-decoration:none" data-proofh="'+i+'" href="'+esc(proofEmail(e))+'">📸 Proof</a>' : '';
+return '<div class="job-row">'+
+'<button class="rowmain" data-i="'+i+'">'+
+'<b>'+esc(e.label)+'</b>'+
+'<span class="meta">'+when+' · '+pct+esc(statusLabel(e))+'</span></button>'+
+'<div class="row">'+sel+proof+'</div>'+
+'</div>';
+}).join('');
 }
 $('historyList').addEventListener('change', ev => {
-  const s = ev.target.closest('select[data-status]'); if (!s) return;
-  const e = readHistory()[Number(s.dataset.status)]; if (!e) return;
-  updateEntry(e.when, x => {
-    x.status = s.value;
-    if (['replied','interview','offer','started'].includes(s.value) && !x.repliedAt) x.repliedAt = Date.now();
-    if (['interview','offer','started'].includes(s.value) && !x.interviewAt) x.interviewAt = Date.now();
-    if ((s.value==='offer'||s.value==='started') && !x.startedAt) x.startedAt = Date.now();
-  });
-  toast('Status: ' + s.value + ' ✓');
+const s = ev.target.closest('select[data-status]'); if (!s) return;
+const e = readHistory()[Number(s.dataset.status)]; if (!e) return;
+updateEntry(e.when, x => {
+x.status = s.value;
+if (['replied','interview','offer','started'].includes(s.value) && !x.repliedAt) x.repliedAt = Date.now();
+if (['interview','offer','started'].includes(s.value) && !x.interviewAt) x.interviewAt = Date.now();
+if ((s.value==='offer'||s.value==='started') && !x.startedAt) x.startedAt = Date.now();
+});
+toast('Status: ' + s.value + ' ✓');
 });
 $('historyList').addEventListener('click', ev => {
-  const p = ev.target.closest('a[data-proofh]');
-  if (p){ const e = readHistory()[Number(p.dataset.proofh)];
-    if (e) setTimeout(()=>{ updateEntry(e.when, x=>{ x.proofAt=Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
-    return; }
-  dueClick(ev);
+const p = ev.target.closest('a[data-proofh]');
+if (p){ const e = readHistory()[Number(p.dataset.proofh)];
+if (e) setTimeout(()=>{ updateEntry(e.when, x=>{ x.proofAt=Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
+return; }
+dueClick(ev);
 });
 $('dueList').addEventListener('click', dueClick);
 
 // ---- visa clock: 3 months of employment before she can file (editable checklist)
 const DNV_DOCS_DEFAULT = ['Passport valid 1+ year','Employment contract (3+ months old by filing day)','Employer letter allowing remote work from Spain','Proof employer has existed 1+ year','Payslips / proof of income ≥ €2,849 gross per month','Criminal-record certificate (apostilled)','Private health insurance valid in Spain','Degree certificate OR proof of 3+ years experience'];
 function readDocs(){ try{ const d=JSON.parse(store.read('rt_dnvdocs')||'null'); if(Array.isArray(d)&&d.length) return d }catch{}
-  return DNV_DOCS_DEFAULT.map(t=>({t,done:false})); }
+return DNV_DOCS_DEFAULT.map(t=>({t,done:false})); }
 function writeDocs(d){ store.write('rt_dnvdocs', JSON.stringify(d)); }
 function renderDnvClock(){
-  const e = readHistory().find(x => x.startedAt && ['offer','started'].includes(x.status));
-  $('dnvClockCard').style.display = e ? 'block' : 'none';
-  if (!e) return;
-  const fileDate = new Date(e.startedAt); fileDate.setMonth(fileDate.getMonth()+3);
-  const daysLeft = Math.max(0, Math.ceil((fileDate - Date.now())/DAY));
-  const docs = readDocs();
-  $('dnvClockBody').innerHTML =
-    '<p style="margin:0 0 4px"><b>'+esc(e.label)+'</b> — started '+new Date(e.startedAt).toLocaleDateString(undefined,{month:'long',day:'numeric'})+'</p>'+
-    '<p class="hint">The visa needs 3 months with this employer before you file. Earliest filing day: <b style="color:var(--good)">'+fileDate.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})+'</b>'+(daysLeft?' — '+daysLeft+' days to go. Use them to collect the papers:':' — you can file now! 🎉')+'</p>'+
-    '<ul class="checks">'+docs.map((d,i)=>'<li style="cursor:pointer" data-doc="'+i+'"><span class="tick '+(d.done?'ok':'no')+'">'+(d.done?'✓':'○')+'</span><span>'+esc(d.t)+'</span><button class="btn small" data-deldoc="'+i+'" style="margin-left:auto;flex:none;padding:2px 8px">✕</button></li>').join('')+'</ul>'+
-    '<div class="row"><input type="text" id="newDoc" placeholder="Add a document…" style="flex:1"><button class="btn small" id="addDocBtn">＋ Add</button></div>';
+const e = readHistory().find(x => x.startedAt && ['offer','started'].includes(x.status));
+$('dnvClockCard').style.display = e ? 'block' : 'none';
+if (!e) return;
+const fileDate = new Date(e.startedAt); fileDate.setMonth(fileDate.getMonth()+3);
+const daysLeft = Math.max(0, Math.ceil((fileDate - Date.now())/DAY));
+const docs = readDocs();
+$('dnvClockBody').innerHTML =
+'<p style="margin:0 0 4px"><b>'+esc(e.label)+'</b> — started '+new Date(e.startedAt).toLocaleDateString(undefined,{month:'long',day:'numeric'})+'</p>'+
+'<p class="hint">The visa needs 3 months with this employer before you file. Earliest filing day: <b style="color:var(--good)">'+fileDate.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})+'</b>'+(daysLeft?' — '+daysLeft+' days to go. Use them to collect the papers:':' — you can file now! 🎉')+'</p>'+
+'<ul class="checks">'+docs.map((d,i)=>'<li style="cursor:pointer" data-doc="'+i+'"><span class="tick '+(d.done?'ok':'no')+'">'+(d.done?'✓':'○')+'</span><span>'+esc(d.t)+'</span><button class="btn small" data-deldoc="'+i+'" style="margin-left:auto;flex:none;padding:2px 8px">✕</button></li>').join('')+'</ul>'+
+'<div class="row"><input type="text" id="newDoc" placeholder="Add a document…" style="flex:1"><button class="btn small" id="addDocBtn">＋ Add</button></div>';
 }
 $('dnvClockBody').addEventListener('click', ev => {
-  const del = ev.target.closest('button[data-deldoc]');
-  if (del){ const d=readDocs(); d.splice(Number(del.dataset.deldoc),1); writeDocs(d); renderDnvClock(); return; }
-  if (ev.target.id==='addDocBtn'){ const v=$('newDoc').value.trim(); if(v){ const d=readDocs(); d.push({t:v,done:false}); writeDocs(d); renderDnvClock(); } return; }
-  const li = ev.target.closest('li[data-doc]');
-  if (li){ const d=readDocs(); const i=Number(li.dataset.doc); d[i].done=!d[i].done; writeDocs(d); renderDnvClock(); }
+const del = ev.target.closest('button[data-deldoc]');
+if (del){ const d=readDocs(); d.splice(Number(del.dataset.deldoc),1); writeDocs(d); renderDnvClock(); return; }
+if (ev.target.id==='addDocBtn'){ const v=$('newDoc').value.trim(); if(v){ const d=readDocs(); d.push({t:v,done:false}); writeDocs(d); renderDnvClock(); } return; }
+const li = ev.target.closest('li[data-doc]');
+if (li){ const d=readDocs(); const i=Number(li.dataset.doc); d[i].done=!d[i].done; writeDocs(d); renderDnvClock(); }
 });
 
 // ---- CSV export (one tap; also available to Parker at /api/apps?format=csv)
 $('csvBtn').onclick = async () => {
-  const h = readHistory();
-  const d = ts => ts ? new Date(ts).toISOString().slice(0,10) : '';
-  const cols = ['applied','company','title','status','match','visa fit','source','outreach','follow-up 1','follow-up 2','proof sent','link'];
-  const rows = h.map(e => [d(e.appliedAt), e.company||'', e.title||e.label, e.status||'', e.score??'', e.dnv||'', e.source||'', d(e.outreachAt), d(e.fu1At), d(e.fu2At), d(e.proofAt), e.url||'']
-    .map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(','));
-  await download(new Blob([cols.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}), 'applications.csv');
+const h = readHistory();
+const d = ts => ts ? new Date(ts).toISOString().slice(0,10) : '';
+const cols = ['applied','company','title','status','match','visa fit','source','outreach','follow-up 1','follow-up 2','proof sent','link'];
+const rows = h.map(e => [d(e.appliedAt), e.company||'', e.title||e.label, e.status||'', e.score??'', e.dnv||'', e.source||'', d(e.outreachAt), d(e.fu1At), d(e.fu2At), d(e.proofAt), e.url||'']
+.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(','));
+await download(new Blob([cols.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}), 'applications.csv');
 };
 
 // ---------- stats: her real numbers vs the research ----------
 function statsData(){
-  const now = Date.now();
-  const apps = readHistory().filter(e => e.appliedAt);
-  const replied = apps.filter(e => e.repliedAt || ['replied','interview','offer','started'].includes(e.status));
-  const interviewed = apps.filter(e => e.interviewAt || ['interview','offer','started'].includes(e.status));
-  const weekly = [];
-  for (let w=7; w>=0; w--){
-    const from = now - (w+1)*7*DAY, to = now - w*7*DAY;
-    weekly.push(apps.filter(e => e.appliedAt > from && e.appliedAt <= to).length);
-  }
-  const replyDays = apps.filter(e=>e.repliedAt).map(e=>Math.round((e.repliedAt-e.appliedAt)/DAY)).sort((a,b)=>a-b);
-  const median = replyDays.length ? replyDays[Math.floor(replyDays.length/2)] : null;
-  const rate = arr => { const a = apps.filter(arr); const r = a.filter(e=>e.repliedAt||['replied','interview','offer','started'].includes(e.status));
-    return { n: a.length, r: r.length, pct: a.length ? Math.round(1000*r.length/a.length)/10 : null }; };
-  return {
-    apps, weekly, replied, interviewed, median,
-    thisWeek: weekly[7],
-    replyRate: apps.length ? Math.round(1000*replied.length/apps.length)/10 : null,
-    interviewRate: apps.length ? Math.round(1000*interviewed.length/apps.length)/10 : null,
-    buckets: {
-      'Where the job came from': [ ['From the feed', rate(e=>e.source==='feed')], ['Pasted myself', rate(e=>e.source!=='feed')] ],
-      'Match score': [ ['75%+', rate(e=>e.score>=75)], ['60–74%', rate(e=>e.score>=60&&e.score<75)], ['Under 60%', rate(e=>e.score!=null&&e.score<60)] ],
-      'Visa income fit': [ ['MEETS', rate(e=>e.dnv==='MEETS')], ['UNKNOWN', rate(e=>e.dnv==='UNKNOWN'||!e.dnv)], ['BELOW', rate(e=>e.dnv==='BELOW')] ],
-      'Emailed the hiring manager': [ ['Yes', rate(e=>e.outreachAt&&!e.outreachAtSkipped)], ['No', rate(e=>!e.outreachAt||e.outreachAtSkipped)] ],
-      'Sent a follow-up': [ ['Yes', rate(e=>e.fu1At&&!e.fu1AtSkipped)], ['No', rate(e=>!e.fu1At||e.fu1AtSkipped)] ],
-      'Cover note length': [ ['Under 100 words', rate(e=>e.noteLen&&e.noteLen<100)], ['100–180', rate(e=>e.noteLen>=100&&e.noteLen<=180)], ['Over 180', rate(e=>e.noteLen>180)] ],
-    },
-  };
+const now = Date.now();
+const apps = readHistory().filter(e => e.appliedAt);
+const replied = apps.filter(e => e.repliedAt || ['replied','interview','offer','started'].includes(e.status));
+const interviewed = apps.filter(e => e.interviewAt || ['interview','offer','started'].includes(e.status));
+const weekly = [];
+for (let w=7; w>=0; w--){
+const from = now - (w+1)*7*DAY, to = now - w*7*DAY;
+weekly.push(apps.filter(e => e.appliedAt > from && e.appliedAt <= to).length);
+}
+const replyDays = apps.filter(e=>e.repliedAt).map(e=>Math.round((e.repliedAt-e.appliedAt)/DAY)).sort((a,b)=>a-b);
+const median = replyDays.length ? replyDays[Math.floor(replyDays.length/2)] : null;
+const rate = arr => { const a = apps.filter(arr); const r = a.filter(e=>e.repliedAt||['replied','interview','offer','started'].includes(e.status));
+return { n: a.length, r: r.length, pct: a.length ? Math.round(1000*r.length/a.length)/10 : null }; };
+return {
+apps, weekly, replied, interviewed, median,
+thisWeek: weekly[7],
+replyRate: apps.length ? Math.round(1000*replied.length/apps.length)/10 : null,
+interviewRate: apps.length ? Math.round(1000*interviewed.length/apps.length)/10 : null,
+buckets: {
+'Where the job came from': [ ['From the feed', rate(e=>e.source==='feed')], ['Pasted myself', rate(e=>e.source!=='feed')] ],
+'Match score': [ ['75%+', rate(e=>e.score>=75)], ['60–74%', rate(e=>e.score>=60&&e.score<75)], ['Under 60%', rate(e=>e.score!=null&&e.score<60)] ],
+'Visa income fit': [ ['MEETS', rate(e=>e.dnv==='MEETS')], ['UNKNOWN', rate(e=>e.dnv==='UNKNOWN'||!e.dnv)], ['BELOW', rate(e=>e.dnv==='BELOW')] ],
+'Emailed the hiring manager': [ ['Yes', rate(e=>e.outreachAt&&!e.outreachAtSkipped)], ['No', rate(e=>!e.outreachAt||e.outreachAtSkipped)] ],
+'Sent a follow-up': [ ['Yes', rate(e=>e.fu1At&&!e.fu1AtSkipped)], ['No', rate(e=>!e.fu1At||e.fu1AtSkipped)] ],
+'Cover note length': [ ['Under 100 words', rate(e=>e.noteLen&&e.noteLen<100)], ['100–180', rate(e=>e.noteLen>=100&&e.noteLen<=180)], ['Over 180', rate(e=>e.noteLen>180)] ],
+},
+};
 }
 function bar(label, value, max, text){
-  const w = max ? Math.max(2, Math.round(100*value/max)) : 2;
-  return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.85rem">'+
-    '<span style="flex:0 0 108px;color:var(--muted)">'+esc(label)+'</span>'+
-    '<span style="flex:1;background:var(--bg);border-radius:6px;overflow:hidden"><span style="display:block;height:14px;width:'+w+'%;background:var(--brand);border-radius:6px"></span></span>'+
-    '<span style="flex:0 0 62px;text-align:right">'+esc(text)+'</span></div>';
+const w = max ? Math.max(2, Math.round(100*value/max)) : 2;
+return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.85rem">'+
+'<span style="flex:0 0 108px;color:var(--muted)">'+esc(label)+'</span>'+
+'<span style="flex:1;background:var(--bg);border-radius:6px;overflow:hidden"><span style="display:block;height:14px;width:'+w+'%;background:var(--brand);border-radius:6px"></span></span>'+
+'<span style="flex:0 0 62px;text-align:right">'+esc(text)+'</span></div>';
 }
 function takeaway(t){ return '<p class="muted" style="margin:4px 0 14px">↳ '+esc(t)+'</p>'; }
 function renderStats(){
-  const d = statsData();
-  $('statsCard').style.display = d.apps.length ? 'block' : 'none';
-  if (!d.apps.length) return;
-  let h = '';
-  // headline numbers
-  h += '<div class="row" style="gap:14px;margin-bottom:10px">'+
-    [['Applied', d.apps.length], ['Replies', d.replied.length], ['Interviews', d.interviewed.length]]
-      .map(x=>'<div style="flex:1;text-align:center;background:var(--bg);border-radius:12px;padding:10px"><b style="font-size:1.3rem">'+x[1]+'</b><br><span class="muted" style="font-size:.8rem">'+x[0]+'</span></div>').join('')+'</div>';
-  // applications per week
-  const maxW = Math.max(1, ...d.weekly);
-  h += '<p class="hint" style="margin:0 0 4px">Applications per week (last 8):</p>';
-  h += d.weekly.map((n,i)=> bar(i===7?'this week':(7-i)+'w ago', n, maxW, n+' job'+(n===1?'':'s'))).join('');
-  h += takeaway(d.thisWeek>=3 && d.thisWeek<=20 ? 'Good pace — steady beats bursts.' : d.thisWeek===0 ? 'Nothing sent this week yet — one tailored application today restarts the streak.' : d.thisWeek>20 ? 'That’s a lot — see the pace note above.' : 'A few more this week wouldn’t hurt — 11–20/month is the sweet spot (9.25% interview rate).');
-  // reply + interview rate vs benchmarks
-  h += '<p class="hint" style="margin:10px 0 4px">Your rates vs the research:</p>';
-  h += bar('Your interviews', d.interviewRate||0, 12, (d.interviewRate??'–')+'%');
-  h += bar('Tailored (norm)', 4.23, 12, '4.23%');
-  h += bar('Untailored (norm)', 2.07, 12, '2.07%');
-  h += takeaway(d.apps.length < 10 ? 'Too few applications to judge yet — rates settle after ~10.' :
-    (d.interviewRate >= 4.23 ? 'Above the tailored-resume benchmark. Keep doing exactly this.' :
-     d.interviewRate >= 2.07 ? 'Between untailored and tailored norms — sharpen targeting (aim for 75%+ matches).' :
-     'Below the norms — target fresher, better-fitting jobs and email the hiring manager.'));
-  if (d.median != null) {
-    h += '<p class="hint" style="margin:10px 0 4px">Replies take:</p>' + bar('Your median', d.median, 42, d.median+' days') + bar('Employer fill', 42, 42, '≈42 days');
-    h += takeaway('Employers typically take ~6 weeks to fill a role — silence for 2–3 weeks is normal, not a no.');
-  }
-  // reply-rate buckets
-  for (const [name, rows] of Object.entries(d.buckets)){
-    const used = rows.filter(([,v])=>v.n>0);
-    if (used.length < 2) continue;
-    h += '<p class="hint" style="margin:10px 0 4px">Reply rate — '+esc(name)+':</p>';
-    h += used.map(([lab,v])=> bar(lab, v.pct||0, 100, v.pct+'% ('+v.r+'/'+v.n+')')).join('');
-    const small = used.some(([,v])=>v.n<5);
-    const best = used.slice().sort((a,b)=>(b[1].pct||0)-(a[1].pct||0))[0];
-    h += takeaway((small?'Small sample so far — ':'')+'best: '+best[0]+' at '+(best[1].pct||0)+'%.');
-  }
-  $('statsBody').innerHTML = h;
-  // pace guard
-  $('paceGuard').innerHTML = d.thisWeek > 20
-    ? '<div class="miss" style="border-color:rgba(224,138,0,.4)"><b>🐢 Slow down — quality wins.</b> You’ve sent '+d.thisWeek+' this week. The data: 11–20 applications/month interview at 9.25% each; 100+ drops to 2.58% (Huntr Q1 2026). Spend the next hour emailing hiring managers for jobs you already applied to instead.</div>'
-    : '';
-  // weekly "what to change" — one concrete move, with the stat that justifies it
-  const outreachRate = d.apps.length ? d.apps.filter(e=>e.outreachAt&&!e.outreachAtSkipped).length/d.apps.length : 0;
-  let change;
-  if (d.thisWeek===0) change = 'Apply to one job today. Tailored applications interview at 4.23% each — but only the ones you actually send.';
-  else if (d.thisWeek>20) change = 'Pause new applications for a day and send hiring-manager emails instead — volume above ~20/week correlates with a third of the interview rate.';
-  else if (d.apps.length>=3 && outreachRate<0.4) change = 'Email the hiring manager for your last few applications (the day-3 drafts are ready in “Due today”). Referrals and direct contact are ~7% of applications but 30–50% of hires.';
-  else if (dueItems().length) change = 'Clear the “Due today” list first — HR managers say a follow-up within 1–2 weeks is welcome, and it’s already written for you.';
-  else if (d.apps.length>=10 && (d.interviewRate||0)<2.1) change = 'Raise your bar: skip anything scoring under 75% and apply the day a job appears — fresh + high-fit is what moves the rate.';
-  else if (d.apps.length>=5 && d.apps.filter(e=>e.dnv==='MEETS').length===0) change = 'None of your applications show pay meeting the visa threshold yet — prioritise the jobs with a “visa ✓” chip in the feed.';
-  else change = 'Nothing to fix this week — keep the pace. Median search-to-offer is 108 days, so steady weeks are how this is won.';
-  $('whatToChange').innerHTML = '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>🎯 This week, change one thing:</b><br>'+esc(change)+'</div>';
+const d = statsData();
+$('statsCard').style.display = d.apps.length ? 'block' : 'none';
+if (!d.apps.length) return;
+let h = '';
+// headline numbers
+h += '<div class="row" style="gap:14px;margin-bottom:10px">'+
+[['Applied', d.apps.length], ['Replies', d.replied.length], ['Interviews', d.interviewed.length]]
+.map(x=>'<div style="flex:1;text-align:center;background:var(--bg);border-radius:12px;padding:10px"><b style="font-size:1.3rem">'+x[1]+'</b><br><span class="muted" style="font-size:.8rem">'+x[0]+'</span></div>').join('')+'</div>';
+// applications per week
+const maxW = Math.max(1, ...d.weekly);
+h += '<p class="hint" style="margin:0 0 4px">Applications per week (last 8):</p>';
+h += d.weekly.map((n,i)=> bar(i===7?'this week':(7-i)+'w ago', n, maxW, n+' job'+(n===1?'':'s'))).join('');
+h += takeaway(d.thisWeek>=3 && d.thisWeek<=20 ? 'Good pace — steady beats bursts.' : d.thisWeek===0 ? 'Nothing sent this week yet — one tailored application today restarts the streak.' : d.thisWeek>20 ? 'That’s a lot — see the pace note above.' : 'A few more this week wouldn’t hurt — 11–20/month is the sweet spot (9.25% interview rate).');
+// reply + interview rate vs benchmarks
+h += '<p class="hint" style="margin:10px 0 4px">Your rates vs the research:</p>';
+h += bar('Your interviews', d.interviewRate||0, 12, (d.interviewRate??'–')+'%');
+h += bar('Tailored (norm)', 4.23, 12, '4.23%');
+h += bar('Untailored (norm)', 2.07, 12, '2.07%');
+h += takeaway(d.apps.length < 10 ? 'Too few applications to judge yet — rates settle after ~10.' :
+(d.interviewRate >= 4.23 ? 'Above the tailored-resume benchmark. Keep doing exactly this.' :
+d.interviewRate >= 2.07 ? 'Between untailored and tailored norms — sharpen targeting (aim for 75%+ matches).' :
+'Below the norms — target fresher, better-fitting jobs and email the hiring manager.'));
+if (d.median != null) {
+h += '<p class="hint" style="margin:10px 0 4px">Replies take:</p>' + bar('Your median', d.median, 42, d.median+' days') + bar('Employer fill', 42, 42, '≈42 days');
+h += takeaway('Employers typically take ~6 weeks to fill a role — silence for 2–3 weeks is normal, not a no.');
+}
+// reply-rate buckets
+for (const [name, rows] of Object.entries(d.buckets)){
+const used = rows.filter(([,v])=>v.n>0);
+if (used.length < 2) continue;
+h += '<p class="hint" style="margin:10px 0 4px">Reply rate — '+esc(name)+':</p>';
+h += used.map(([lab,v])=> bar(lab, v.pct||0, 100, v.pct+'% ('+v.r+'/'+v.n+')')).join('');
+const small = used.some(([,v])=>v.n<5);
+const best = used.slice().sort((a,b)=>(b[1].pct||0)-(a[1].pct||0))[0];
+h += takeaway((small?'Small sample so far — ':'')+'best: '+best[0]+' at '+(best[1].pct||0)+'%.');
+}
+$('statsBody').innerHTML = h;
+// pace guard
+$('paceGuard').innerHTML = d.thisWeek > 20
+? '<div class="miss" style="border-color:rgba(224,138,0,.4)"><b>🐢 Slow down — quality wins.</b> You’ve sent '+d.thisWeek+' this week. The data: 11–20 applications/month interview at 9.25% each; 100+ drops to 2.58% (Huntr Q1 2026). Spend the next hour emailing hiring managers for jobs you already applied to instead.</div>'
+: '';
+// weekly "what to change" — one concrete move, with the stat that justifies it
+const outreachRate = d.apps.length ? d.apps.filter(e=>e.outreachAt&&!e.outreachAtSkipped).length/d.apps.length : 0;
+let change;
+if (d.thisWeek===0) change = 'Apply to one job today. Tailored applications interview at 4.23% each — but only the ones you actually send.';
+else if (d.thisWeek>20) change = 'Pause new applications for a day and send hiring-manager emails instead — volume above ~20/week correlates with a third of the interview rate.';
+else if (d.apps.length>=3 && outreachRate<0.4) change = 'Email the hiring manager for your last few applications (the day-3 drafts are ready in “Due today”). Referrals and direct contact are ~7% of applications but 30–50% of hires.';
+else if (dueItems().length) change = 'Clear the “Due today” list first — HR managers say a follow-up within 1–2 weeks is welcome, and it’s already written for you.';
+else if (d.apps.length>=10 && (d.interviewRate||0)<2.1) change = 'Raise your bar: skip anything scoring under 75% and apply the day a job appears — fresh + high-fit is what moves the rate.';
+else if (d.apps.length>=5 && d.apps.filter(e=>e.dnv==='MEETS').length===0) change = 'None of your applications show pay meeting the visa threshold yet — prioritise the jobs with a “visa ✓” chip in the feed.';
+else change = 'Nothing to fix this week — keep the pace. Median search-to-offer is 108 days, so steady weeks are how this is won.';
+$('whatToChange').innerHTML = '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>🎯 This week, change one thing:</b><br>'+esc(change)+'</div>';
 }
 
 renderHistory();
@@ -1685,35 +1716,35 @@ renderStats();
 pullApps().then(()=>{ renderDue(); renderStats(); });
 // nudge when something is due: toast + system notification when allowed
 (() => {
-  const due = dueItems();
-  if (!due.length) return;
-  setTimeout(()=> toast('⏰ ' + due.length + ' thing' + (due.length>1?'s':'') + ' to send today — top of the page'), 1200);
-  try {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('✉️ Due today', { body: due[0].e.label + (due.length>1 ? ' (+'+(due.length-1)+' more)' : '') });
-    }
-  } catch {}
+const due = dueItems();
+if (!due.length) return;
+setTimeout(()=> toast('⏰ ' + due.length + ' thing' + (due.length>1?'s':'') + ' to send today — top of the page'), 1200);
+try {
+if ('Notification' in window && Notification.permission === 'granted') {
+new Notification('✉️ Due today', { body: due[0].e.label + (due.length>1 ? ' (+'+(due.length-1)+' more)' : '') });
+}
+} catch {}
 })();
 
 async function download(blob, name){
-  // iPhone/iPad (especially the home-screen app, where downloads barely work):
-  // the share sheet is the reliable way — Save to Files, or straight into Mail.
-  try {
-    const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
-    if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      await navigator.share({ files: [file] });
-      toast('Saved ✓');
-      return;
-    }
-  } catch (e) {
-    if (e && e.name === 'AbortError') return;   // she closed the share sheet — fine
-    /* NotAllowed or unsupported → fall through to normal download */
-  }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click();
-  // keep the blob alive long enough for the save dialog (500ms used to kill it)
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 120000);
+// iPhone/iPad (especially the home-screen app, where downloads barely work):
+// the share sheet is the reliable way — Save to Files, or straight into Mail.
+try {
+const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+await navigator.share({ files: [file] });
+toast('Saved ✓');
+return;
+}
+} catch (e) {
+if (e && e.name === 'AbortError') return;   // she closed the share sheet — fine
+/* NotAllowed or unsupported → fall through to normal download */
+}
+const a = document.createElement('a');
+a.href = URL.createObjectURL(blob); a.download = name;
+document.body.appendChild(a); a.click();
+// keep the blob alive long enough for the save dialog (500ms used to kill it)
+setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 120000);
 }
 </script>
 </body>

@@ -30,14 +30,33 @@ export default {
       }
 
       if (url.pathname === '/api/jobs') {
-        return await jobsFeed(url, env, cors);
+        const resp = await jobsFeed(url, env, cors);
+        // edge/browser revalidation: cheap 304 when nothing changed
+        try {
+          const et = resp.headers.get('ETag');
+          if (et && request.headers.get('If-None-Match') === et) {
+            return new Response(null, { status: 304, headers: { 'ETag': et, ...cors } });
+          }
+        } catch {}
+        return resp;
       }
       if (url.pathname === '/api/apps') {
         return await appsStore(request, url, env, cors);
       }
+      if (url.pathname === '/api/errors') {
+        if (!env.ACCESS_CODE || (url.searchParams.get('code') || '').trim() !== env.ACCESS_CODE) {
+          return json({ error: 'bad_code' }, 401, cors);
+        }
+        let ring = [];
+        try { ring = JSON.parse(await env.JOBS_KV.get('errors:ring') || '[]'); } catch {}
+        return json({ ok: true, errors: ring }, 200, cors);
+      }
 
       if (request.method !== 'POST') {
         return json({ error: 'Not found' }, 404, cors);
+      }
+      if (Number(request.headers.get('content-length') || 0) > 300000) {
+        return json({ error: 'too_big', message: 'That’s too much text — trim the resume or job description and try again.' }, 413, cors);
       }
 
       const body = await request.json().catch(() => ({}));
@@ -60,6 +79,7 @@ export default {
       }
       return json({ error: 'Not found' }, 404, cors);
     } catch (err) {
+      await logError(env, url.pathname, String(err && err.message || err));
       return json({ error: 'server_error', message: String(err && err.message || err) }, 500, cors);
     }
   },
@@ -69,6 +89,17 @@ export default {
     ctx.waitUntil(refreshFeedCron(env));
   },
 };
+
+// last-100 failures, oldest out — so "what broke?" has an answer
+async function logError(env, endpoint, cause) {
+  try {
+    if (!env.JOBS_KV) return;
+    let ring = [];
+    try { ring = JSON.parse(await env.JOBS_KV.get('errors:ring') || '[]'); } catch {}
+    ring.push({ at: new Date().toISOString(), endpoint, cause: String(cause).slice(0, 300) });
+    await env.JOBS_KV.put('errors:ring', JSON.stringify(ring.slice(-100)));
+  } catch {}
+}
 
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
@@ -134,6 +165,10 @@ const STRONG_OK = /worldwide|anywhere|global|europe|emea/i;
 const LOCATION_BAD = /U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only|North America|Americas only|LATAM|APAC only|(?:\bEast\b|\bCentral\b|\bWest\b)(?!(?:ern)? ?Europe)|\bFederal\b|on[- ]?site|in[- ]?office|\bhybrid\b|\b[PECM][SD]?T\b ?(?:hours|time|business)/i;
 const UA = { 'User-Agent': 'ResumeTailor/1.0' };
 const CF_CACHE = { cf: { cacheTtl: 900, cacheEverything: true } };
+// every upstream call gets a hard timeout so one slow source can't hang the feed
+function tfetch(url, opts = {}, ms = 8000) {
+  return fetch(url, { ...opts, signal: AbortSignal.timeout(ms) });
+}
 const EOR_FRIENDLY = new Set(COMPANIES.eor_friendly.map(c => normCo(c)));
 
 function normCo(c) { return String(c || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/com$/, ''); }
@@ -223,7 +258,13 @@ async function jobsFeed(url, env, cors) {
   }
   if (kvRaw && kvRaw.raw && Date.now() - kvRaw.updated < 4 * 3600000) {
     const jobs = filterFeed(kvRaw.raw, syn, fresh);
-    if (jobs.length) return json({ ok: true, jobs, updated: kvRaw.updated, down: kvRaw.down || [], cached: true }, 200, cors);
+    if (jobs.length) {
+      const r = json({ ok: true, jobs, updated: kvRaw.updated, down: kvRaw.down || [], cached: true }, 200, cors);
+      r.headers.set('ETag', 'W/"' + kvRaw.updated + '-' + jobs.length + '-' + syn.length + '"');
+      r.headers.set('Cache-Control', 'public, max-age=300');
+      r.headers.set('Access-Control-Expose-Headers', 'ETag');
+      return r;
+    }
   }
   try {
     const feed = await buildFeed(syn, fresh);
@@ -237,6 +278,7 @@ async function jobsFeed(url, env, cors) {
       const jobs = filterFeed(kvRaw.raw, syn, 30);
       if (jobs.length) return json({ ok: true, jobs, updated: kvRaw.updated, down: ['live refresh failed — showing the saved feed'], stale: true }, 200, cors);
     }
+    await logError(env, '/api/jobs', 'all sources failed: ' + String(e && e.message || e));
     return json({ error: 'feed_down', message: 'Couldn’t load jobs from any source right now. Paste a job link below instead — that still works.' }, 503, cors);
   }
 }
@@ -297,7 +339,7 @@ async function maybeTelegramDigest(env, jobs) {
 // Remotive: public API with candidate_required_location
 async function fetchRemotive() {
   const jobs = [];
-  const r = await fetch('https://remotive.com/api/remote-jobs?search=customer%20support&limit=100', CF_CACHE);
+  const r = await tfetch('https://remotive.com/api/remote-jobs?search=customer%20support&limit=100', CF_CACHE);
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
@@ -313,7 +355,7 @@ async function fetchRemotive() {
 // RemoteOK: public API; first element is a legal notice
 async function fetchRemoteOK() {
   const jobs = [];
-  const r = await fetch('https://remoteok.com/api?tags=customer%20support', { headers: UA, ...CF_CACHE });
+  const r = await tfetch('https://remoteok.com/api?tags=customer%20support', { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of (Array.isArray(d) ? d : [])) {
@@ -330,7 +372,7 @@ async function fetchRemoteOK() {
 // We Work Remotely: customer-support RSS
 async function fetchWWR() {
   const jobs = [];
-  const r = await fetch('https://weworkremotely.com/categories/remote-customer-support-jobs.rss', { headers: UA, ...CF_CACHE });
+  const r = await tfetch('https://weworkremotely.com/categories/remote-customer-support-jobs.rss', { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const xml = await r.text();
   for (const it of xml.split('<item>').slice(1)) {
@@ -360,7 +402,7 @@ function boardName(board) {
 
 async function fetchGreenhouseBoard(board) {
   const jobs = [];
-  const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs`, { headers: UA, ...CF_CACHE });
+  const r = await tfetch(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
@@ -378,7 +420,7 @@ async function fetchGreenhouseBoard(board) {
 
 async function fetchAshbyBoard(board) {
   const jobs = [];
-  const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${board}`, { headers: UA, ...CF_CACHE });
+  const r = await tfetch(`https://api.ashbyhq.com/posting-api/job-board/${board}`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
@@ -395,7 +437,7 @@ async function fetchAshbyBoard(board) {
 
 async function fetchLeverBoard(board) {
   const jobs = [];
-  const r = await fetch(`https://api.lever.co/v0/postings/${board}?limit=100`, { headers: UA, ...CF_CACHE });
+  const r = await tfetch(`https://api.lever.co/v0/postings/${board}?limit=100`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of (Array.isArray(d) ? d : [])) {
@@ -413,7 +455,7 @@ async function fetchLeverBoard(board) {
 
 async function fetchWorkableBoard(board) {
   const jobs = [];
-  const r = await fetch(`https://apply.workable.com/api/v1/widget/accounts/${board}?details=false`, { headers: UA, ...CF_CACHE });
+  const r = await tfetch(`https://apply.workable.com/api/v1/widget/accounts/${board}?details=false`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
@@ -431,7 +473,7 @@ async function fetchWorkableBoard(board) {
 // Jobicy: public API with region + industry filters (credit: jobicy.com)
 async function fetchJobicy(geo) {
   const jobs = [];
-  const r = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&industry=supporting`, { headers: UA, ...CF_CACHE });
+  const r = await tfetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&industry=supporting`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
@@ -469,7 +511,7 @@ async function fetchJob(body, cors) {
 
   let html = '';
   try {
-    const resp = await fetch(jobUrl, {
+    const resp = await tfetch(jobUrl, {
       redirect: 'follow',
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
@@ -520,7 +562,7 @@ async function tryAdapters(u) {
       const id = (u.pathname.match(/\/jobs\/view\/(?:[^/]*-)?(\d{6,})/) || [])[1]
         || u.searchParams.get('currentJobId');
       if (id) {
-        const r = await fetch(`https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`, {
+        const r = await tfetch(`https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`, {
           headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
         });
         if (r.ok) {
@@ -539,7 +581,7 @@ async function tryAdapters(u) {
     if (host.endsWith('greenhouse.io')) {
       const m = u.pathname.match(/\/([^/]+)\/jobs\/(\d+)/);
       if (m) {
-        const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${m[1]}/jobs/${m[2]}`);
+        const r = await tfetch(`https://boards-api.greenhouse.io/v1/boards/${m[1]}/jobs/${m[2]}`);
         if (r.ok) {
           const d = await r.json();
           const text = stripTags(unescapeHtml(d.content || ''));
@@ -551,7 +593,7 @@ async function tryAdapters(u) {
     if (host === 'jobs.lever.co') {
       const m = u.pathname.match(/^\/([^/]+)\/([0-9a-f-]{16,})/i);
       if (m) {
-        const r = await fetch(`https://api.lever.co/v0/postings/${m[1]}/${m[2]}`);
+        const r = await tfetch(`https://api.lever.co/v0/postings/${m[1]}/${m[2]}`);
         if (r.ok) {
           const d = await r.json();
           const lists = (d.lists || []).map(l => `${l.text}\n${stripTags(l.content || '')}`).join('\n\n');
@@ -564,7 +606,7 @@ async function tryAdapters(u) {
     if (host === 'jobs.smartrecruiters.com') {
       const m = u.pathname.match(/^\/([^/]+)\/(\d{9,})/);
       if (m) {
-        const r = await fetch(`https://api.smartrecruiters.com/v1/companies/${m[1]}/postings/${m[2]}`);
+        const r = await tfetch(`https://api.smartrecruiters.com/v1/companies/${m[1]}/postings/${m[2]}`);
         if (r.ok) {
           const d = await r.json();
           const sec = d.jobAd && d.jobAd.sections || {};
@@ -983,6 +1025,7 @@ async function tailor(body, env, cors) {
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
     const status = resp.status === 429 ? 429 : 502;
+    await logError(env, '/api/tailor', 'claude ' + resp.status + ': ' + errText.slice(0, 120));
     return json({ error: 'claude_error', message: friendlyClaudeError(resp.status, errText), detail: errText.slice(0, 300) }, status, cors);
   }
 
