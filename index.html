@@ -571,7 +571,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
-const APP_VERSION = 'v22';
+const APP_VERSION = 'v23';
 document.getElementById('verTag').textContent = APP_VERSION;
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch {} }
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
@@ -593,7 +593,7 @@ loadStart = Date.now();
 const tick = () => {
 const s = Math.round((Date.now() - loadStart) / 1000);
 const i = Math.min(Math.floor(s / 6), LOADING_LINES.length - 1);
-$('loadingMsg').textContent = LOADING_LINES[i] + '  ' + s + 's' + (s > 8 ? ' · usually 20–45s' : '');
+$('loadingMsg').textContent = LOADING_LINES[i] + '  ' + s + 's' + (s > 20 ? ' · nearly done' : '');
 };
 tick();
 loadTimer = setInterval(tick, 1000);
@@ -659,7 +659,7 @@ jobText = d.jobText;
 window._lastJobText = jobText;
 window._baseSuggestion = suggestBase(jobText);
 const tailorBody = { resume, jobText, accessCode: code, profile: composeProfile(),
-settings: currentSettings(), voice: store.read('rt_voice'), stream: true };
+settings: currentSettings(), voice: store.read('rt_voice'), stream: true, phase: 'core' };
 const r2 = await fetch(API_BASE + '/api/tailor', {
 method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
 body: JSON.stringify(tailorBody)
@@ -687,19 +687,40 @@ if (jobUrl) result.job_url = jobUrl;
 result._fromFeed = !!window._jobFromFeed; window._jobFromFeed = false;
 $('jobInput').value = ''; store.write('rt_jobdraft', '');   // ready for the next job
 $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
-render(result);   // show it immediately — speed first
+render(result);   // resume + verdicts show now — the letters follow in the background
 if (!result._salvage) {
+const WRITING = '✍️ Still writing this part — give it a few seconds…';
+$('outNote').textContent = WRITING; $('outLetter').textContent = WRITING;
+$('outQuestions').innerHTML = '<p class="muted">'+WRITING+'</p>';
 (async () => {
+let merged = result;
+for (let attempt = 0; attempt < 2; attempt++) {
 try {
-const checked = await antiSlop(result, tailorBody);
-if (checked !== result) {
+const r3 = await fetch(API_BASE + '/api/tailor', { method:'POST', headers:{'content-type':'application/json'},
+body: JSON.stringify({ ...tailorBody, stream:false, phase:'extras', tailoredResume: result.tailored_resume }) });
+const d3 = await r3.json();
+if (r3.ok && d3 && d3.result) { merged = { ...result, ...d3.result, tailored_resume: result.tailored_resume }; break; }
+} catch {}
+await new Promise(res => setTimeout(res, 2000));
+}
+if (merged === result) {
+$('outNote').textContent = 'The letters didn’t load this time — tap Tailor again and they usually come through.';
+$('outLetter').textContent = ''; $('outQuestions').innerHTML = '';
+return;
+}
+const h = readHistory(); const e = h.find(x=>x.when===currentHistId);
+if (e) { e.result = merged; e.noteLen = String(merged.cover_note||'').split(/\s+/).filter(Boolean).length; writeHistory(h); }
+render(merged, true);
+try {
+const checked = await antiSlop(merged, tailorBody);
+if (checked !== merged) {
 if (result.job_url) checked.job_url = result.job_url;
 checked._fromFeed = result._fromFeed;
-const h = readHistory(); const e = h.find(x=>x.when===currentHistId);
-if (e) { e.result = checked; writeHistory(h); }
+const h2 = readHistory(); const e2 = h2.find(x=>x.when===currentHistId);
+if (e2) { e2.result = checked; writeHistory(h2); }
 render(checked, true);
 toast(checked._slop ? '🤖 Some lines still sound AI-ish — see the note' : '✨ Polished a rough first draft');
-} else if (result._slop) { render(result, true); }
+} else if (merged._slop) { render(merged, true); }
 } catch {}
 })();
 }

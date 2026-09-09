@@ -903,6 +903,8 @@ SOUND HUMAN, NEVER AI-GENERATED (Robert Half: 67% of HR leaders say AI-looking a
 
 OUTPUT LANGUAGE: write the resume, letters, and answers in the language of the posting (English, Spanish, German, Albanian...) unless CONFIG says otherwise. Honesty rules apply in every language. JSON keys stay in English.
 
+PHASES: if the request says PHASE CORE or PHASE EXTRAS, output ONLY the keys that phase lists (same rules, caps, and honesty apply). PHASE EXTRAS outputs ONLY the JSON object — no ===RESUME=== block, no markers.
+
 OUTPUT FORMAT — exactly this, in this order, nothing before or after:
 ===RESUME===
 <the full plain-text tailored resume>
@@ -982,9 +984,16 @@ async function tailor(body, env, cors) {
   const synonyms = String(s.titleSynonyms || '').slice(0, 300);
   const floor = Math.round(Number(s.salaryFloor)) || 0;
   const config = `CONFIG:\n- DNV THRESHOLD: €${dnv}/month gross${s.dnvVerified ? ` (last verified ${String(s.dnvVerified).slice(0, 20)})` : ''}\n- FIT THRESHOLD: ${fitTh}%${floor ? `\n- SALARY FLOOR: €${floor}/month gross (flag in tips if the posting's visible pay is below this)` : ''}${synonyms ? `\n- TITLE SYNONYMS (titles that count as her kind of work — treat a posting titled with any of these as her target role): ${synonyms}` : ''}${outLang ? `\n- OUTPUT LANGUAGE: ${outLang} (override — use this instead of the posting's language)` : ''}`;
+  const phase = body.phase === 'core' ? 'core' : body.phase === 'extras' ? 'extras' : 'full';
+  const tailored = String(body.tailoredResume || '').trim().slice(0, 6000);
+  const phaseMsg = phase === 'core'
+    ? `PHASE CORE — she is waiting on her phone. Output ONLY: the ===RESUME=== block, then ===DATA=== JSON with EXACTLY these keys: match_before, match_after, match_explanation, knockout, fit, dnv_fit, location_fit, location_visa, scam_risk, why_score, questions_for_her, candidate_name, job_title, company. No other keys.\n\n`
+    : phase === 'extras'
+    ? `PHASE EXTRAS — the resume is already tailored (below). Output ONLY a JSON object with EXACTLY these keys: changes, keywords_added, missing_keywords, gaps, claims_traced, ats_check, cover_note, cover_letter, follow_up, screening_questions, tips, apply_kit. Base the letters and answers on the TAILORED RESUME; honesty still traces to the ORIGINAL RESUME and situation.\n\nTAILORED RESUME:\n${tailored}\n\n`
+    : '';
   const voice = String(body.voice || '').trim().slice(0, 1200);
   const complaints = Array.isArray(body.complaints) ? body.complaints.slice(0, 12).map(c => String(c).slice(0, 200)) : [];
-  const userMsg = `${config}\n\n----------------\n\nJOB POSTING:\n${jobText.slice(0, 9000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 9000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}${voice ? `----------------\n\nHER VOICE SAMPLE (real sentences she wrote — match this register and rhythm in the letters, notes and answers; do not copy its content):\n${voice}\n\n` : ''}${complaints.length ? `----------------\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED FOR THESE REASONS — fix every one this time:\n${complaints.map(c => '- ' + c).join('\n')}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, knockout pre-check first, ATS-safe plain text, concise, JSON only.`;
+  const userMsg = `${config}\n\n----------------\n\nJOB POSTING:\n${jobText.slice(0, 9000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 9000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}${voice ? `----------------\n\nHER VOICE SAMPLE (real sentences she wrote — match this register and rhythm in the letters, notes and answers; do not copy its content):\n${voice}\n\n` : ''}${complaints.length ? `----------------\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED FOR THESE REASONS — fix every one this time:\n${complaints.map(c => '- ' + c).join('\n')}\n\n` : ''}${phaseMsg}Tailor the resume to this job posting. Remember: honesty rules, knockout pre-check first, ATS-safe plain text, concise, JSON only.`;
 
   const callClaude = (model, maxTokens, stream) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -1005,15 +1014,16 @@ async function tailor(body, env, cors) {
   });
 
   const wantStream = body.stream === true;
+  const maxTok = phase === 'core' ? 3500 : phase === 'extras' ? 4500 : 9000;
   let model = env.CLAUDE_MODEL || 'claude-sonnet-5';
-  let resp = await callClaude(model, 9000, wantStream);
+  let resp = await callClaude(model, maxTok, wantStream);
 
   // Key doesn't have the newest model → fall back once.
   if (!resp.ok && (resp.status === 404 || resp.status === 400)) {
     const errText = await resp.text().catch(() => '');
     if (/model/i.test(errText) && model !== 'claude-sonnet-4-5') {
       model = 'claude-sonnet-4-5';
-      resp = await callClaude(model, 9000, wantStream);
+      resp = await callClaude(model, maxTok, wantStream);
     } else {
       return json({ error: 'claude_error', message: friendlyClaudeError(resp.status, errText), detail: errText.slice(0, 300) }, 502, cors);
     }
@@ -1021,7 +1031,7 @@ async function tailor(body, env, cors) {
   // Momentarily overloaded → one automatic retry instead of a visible failure.
   if (!resp.ok && (resp.status === 529 || resp.status >= 500)) {
     await new Promise(r => setTimeout(r, 1500));
-    resp = await callClaude(model, 9000, wantStream);
+    resp = await callClaude(model, maxTok, wantStream);
   }
 
   if (!resp.ok) {
@@ -1043,12 +1053,12 @@ async function tailor(body, env, cors) {
   let data = await resp.json();
   // Ran out of room mid-answer (huge posting) → one retry with more headroom.
   if (data.stop_reason === 'max_tokens') {
-    const r2 = await callClaude(model, 9000, false);
+    const r2 = await callClaude(model, maxTok + 2000, false);
     if (r2.ok) data = await r2.json();
   }
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   const parsed = assembleTailorResult(text);
-  if (!parsed || !parsed.tailored_resume) {
+  if (!parsed || (phase !== 'extras' && !parsed.tailored_resume)) {
     return json({ error: 'bad_ai_json', message: 'The AI answered in a weird format. Tap Tailor again.', raw: text.slice(0, 500) }, 502, cors);
   }
   return json({ ok: true, result: parsed, model }, 200, cors);
