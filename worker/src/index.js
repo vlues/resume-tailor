@@ -716,7 +716,9 @@ async function tailor(body, env, cors) {
   const dnv = Math.round(Number(s.dnvMonthly)) || 2849;
   const fitTh = Math.min(95, Math.max(10, Math.round(Number(s.fitThreshold)) || 60));
   const outLang = String(s.outputLanguage || '').slice(0, 30);
-  const config = `CONFIG:\n- DNV THRESHOLD: €${dnv}/month gross${s.dnvVerified ? ` (last verified ${String(s.dnvVerified).slice(0, 20)})` : ''}\n- FIT THRESHOLD: ${fitTh}%${outLang ? `\n- OUTPUT LANGUAGE: ${outLang} (override — use this instead of the posting's language)` : ''}`;
+  const synonyms = String(s.titleSynonyms || '').slice(0, 300);
+  const floor = Math.round(Number(s.salaryFloor)) || 0;
+  const config = `CONFIG:\n- DNV THRESHOLD: €${dnv}/month gross${s.dnvVerified ? ` (last verified ${String(s.dnvVerified).slice(0, 20)})` : ''}\n- FIT THRESHOLD: ${fitTh}%${floor ? `\n- SALARY FLOOR: €${floor}/month gross (flag in tips if the posting's visible pay is below this)` : ''}${synonyms ? `\n- TITLE SYNONYMS (titles that count as her kind of work — treat a posting titled with any of these as her target role): ${synonyms}` : ''}${outLang ? `\n- OUTPUT LANGUAGE: ${outLang} (override — use this instead of the posting's language)` : ''}`;
   const voice = String(body.voice || '').trim().slice(0, 1200);
   const complaints = Array.isArray(body.complaints) ? body.complaints.slice(0, 12).map(c => String(c).slice(0, 200)) : [];
   const userMsg = `${config}\n\n----------------\n\nJOB POSTING:\n${jobText.slice(0, 16000)}\n\n----------------\n\nORIGINAL RESUME:\n${resume.slice(0, 12000)}\n\n${profile ? `----------------\n\nCANDIDATE SITUATION (context only — never written onto the resume):\n${profile}\n\n` : ''}${voice ? `----------------\n\nHER VOICE SAMPLE (real sentences she wrote — match this register and rhythm in the letters, notes and answers; do not copy its content):\n${voice}\n\n` : ''}${complaints.length ? `----------------\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED FOR THESE REASONS — fix every one this time:\n${complaints.map(c => '- ' + c).join('\n')}\n\n` : ''}Tailor the resume to this job posting. Remember: honesty rules, knockout pre-check first, ATS-safe plain text, concise, JSON only.`;

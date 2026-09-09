@@ -48,6 +48,9 @@ textarea,input[type=text],input[type=url],input[type=password]{
   background:var(--bg);color:var(--ink);outline:none;
 }
 textarea:focus,input:focus{border-color:var(--brand)}
+select.sel{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 10px;font:16px inherit;background:var(--bg);color:var(--ink)}
+.chip{flex:none;padding:8px 14px;border-radius:999px;background:var(--bg);border:1.5px solid var(--line);font-weight:600;font-size:.88rem;color:var(--muted)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
 textarea{min-height:150px;resize:vertical}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 button{font:inherit;cursor:pointer;border:0;border-radius:12px;-webkit-tap-highlight-color:transparent}
@@ -117,11 +120,13 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
   <!-- STEP 1: resume -->
   <section class="card" id="resumeCard">
     <div id="resumeCollapsed" style="display:none">
-      <button class="slim" id="editResumeBtn"><span class="tickball">✓</span> Resume saved on this phone <span class="lnk">Change</span></button>
+      <button class="slim" id="editResumeBtn"><span class="tickball">✓</span> <span id="savedLabel">Resume saved on this phone</span> <span class="lnk">Change</span></button>
     </div>
+    <div class="tabs" id="baseChips" style="display:none;margin:10px -18px 0;padding:0 18px 4px"></div>
     <div id="resumeOpen">
       <h2><span class="step">1</span> Your resume — once</h2>
-      <p class="hint">Paste it or upload the file. It stays saved on this phone.</p>
+      <p class="hint">Paste it or upload the file. It stays saved on this phone. You can keep up to 5 versions (support, sales, hospitality…) — the tool tells you which one fits a job best.</p>
+      <input type="text" id="baseName" placeholder="Name this version (e.g. Support)" style="margin-bottom:8px">
       <textarea id="resumeText" placeholder="Paste your whole resume here…"></textarea>
       <div class="row">
         <label class="btn small" style="display:inline-flex;align-items:center;gap:6px">
@@ -133,16 +138,58 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
       <p class="muted" id="fileStatus"></p>
     </div>
     <details class="adv" id="profileDetails">
-      <summary>🌍 Your situation (already filled in — tap to check)</summary>
+      <summary>🌍 Profile — your situation and stored answers (tap to edit)</summary>
       <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
-      <p class="muted">Used to check each job’s location rules and sharpen answers. Never written onto the resume.</p>
+      <p class="muted">Your story in your words. The fields below sharpen it — all of it is used to check each job’s rules and pre-fill answers. Never written onto the resume.</p>
+      <div class="row" style="align-items:flex-end">
+        <label style="flex:1;min-width:130px"><span class="muted">Where you live now</span>
+          <input type="text" id="setCountry" placeholder="Kosovo"></label>
+        <label style="flex:1;min-width:130px"><span class="muted">Where you’re headed</span>
+          <input type="text" id="setTargets" placeholder="Spain (digital-nomad visa)"></label>
+      </div>
       <div class="row" style="align-items:flex-end">
         <label style="flex:1;min-width:130px"><span class="muted">Visa income need (€/month gross)</span>
           <input type="text" id="setDnv" inputmode="numeric" placeholder="2849"></label>
+        <label style="flex:1;min-width:130px"><span class="muted">Your salary floor (€/month gross)</span>
+          <input type="text" id="setFloor" inputmode="numeric" placeholder="e.g. 1500"></label>
+      </div>
+      <p class="muted">€2,849 = Spain digital-nomad visa minimum, checked 9 Sep 2026. Change it if the rules change.</p>
+      <div class="row" style="align-items:flex-end">
+        <label style="flex:1;min-width:130px"><span class="muted">Remote</span>
+          <select id="setRemote" class="sel">
+            <option value="remote only">Remote only</option>
+            <option value="hybrid OK">Hybrid OK</option>
+          </select></label>
         <label style="flex:1;min-width:130px"><span class="muted">“Low odds” below (% of requirements)</span>
           <input type="text" id="setFit" inputmode="numeric" placeholder="60"></label>
       </div>
-      <p class="muted">€2,849 = Spain digital-nomad visa minimum, checked 9 Sep 2026. Change it if the rules change.</p>
+      <div class="row" style="align-items:flex-end">
+        <label style="flex:1;min-width:130px"><span class="muted">Languages, with level (A1–C2)</span>
+          <input type="text" id="setLangs" placeholder="Albanian native, English C1"></label>
+        <label style="flex:1;min-width:130px"><span class="muted">Write answers in…</span>
+          <select id="setOutLang" class="sel">
+            <option value="">The job posting’s language</option>
+            <option value="English">Always English</option>
+            <option value="Spanish">Always Spanish</option>
+            <option value="German">Always German</option>
+            <option value="Albanian">Always Albanian</option>
+          </select></label>
+      </div>
+      <p class="hint" style="margin:14px 0 4px">✅ Stored answers — dropped straight into screening answers</p>
+      <div class="row" style="align-items:flex-end">
+        <label style="flex:1;min-width:130px"><span class="muted">“Are you authorized to work…?”</span>
+          <input type="text" id="setAuth" placeholder="your honest standard answer"></label>
+        <label style="flex:1;min-width:130px"><span class="muted">“Do you need sponsorship?”</span>
+          <input type="text" id="setSponsor" placeholder="your honest standard answer"></label>
+      </div>
+      <div class="row" style="align-items:flex-end">
+        <label style="flex:1;min-width:130px"><span class="muted">Notice period / start date</span>
+          <input type="text" id="setNotice" placeholder="e.g. can start in 2 weeks"></label>
+        <label style="flex:1;min-width:130px"><span class="muted">Availability / hours</span>
+          <input type="text" id="setAvail" placeholder="e.g. full-time, CET hours"></label>
+      </div>
+      <p class="hint" style="margin:14px 0 4px">🔁 Job titles that count as your kind of work</p>
+      <input type="text" id="setSynonyms" placeholder="support, success, helpdesk, customer care…">
       <p class="hint" style="margin:14px 0 4px">🗣️ How you write (one time, optional)</p>
       <textarea id="voiceText" style="min-height:80px" placeholder="Paste 3–5 sentences you really wrote — a normal email is perfect. Your letters will be written in this voice instead of AI-speak."></textarea>
     </details>
@@ -199,6 +246,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     </div>
     <div class="miss" id="dnvBanner" style="display:none"></div>
     <div class="miss" id="slopBanner" style="display:none"></div>
+    <div class="miss" id="baseSuggest" style="display:none;border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"></div>
     <div id="outAsk"></div>
 
     <div class="tabs" id="tabs">
@@ -280,20 +328,79 @@ const store = {
   write(key,v){ try{ localStorage.setItem(key,v) }catch{} },
 };
 
-// ---------- resume save/restore ----------
+// ---------- base resumes (up to 5; rt_resume mirrors the active one) ----------
+function readBases(){
+  try { const b = JSON.parse(store.read('rt_bases')||'null'); if (Array.isArray(b) && b.length) return b; } catch {}
+  const legacy = store.read('rt_resume');
+  return legacy.length > 100 ? [{name:'Main', text:legacy}] : [];
+}
+let baseActive = Math.max(0, Number(store.read('rt_baseActive')) || 0);
+function writeBases(b){
+  store.write('rt_bases', JSON.stringify(b.slice(0,5)));
+  const a = b[Math.min(baseActive, b.length-1)];
+  store.write('rt_resume', a ? a.text : '');
+}
 function refreshResumeUI(){
-  const has = store.read('rt_resume').length > 100;
+  const bases = readBases();
+  if (baseActive >= bases.length) baseActive = Math.max(0, bases.length-1);
+  store.write('rt_baseActive', String(baseActive));
+  const cur = bases[baseActive];
+  const has = !!(cur && cur.text.length > 100);
   $('resumeCollapsed').style.display = has ? 'block' : 'none';
   $('resumeOpen').style.display = has ? 'none' : 'block';
-  if (has) $('resumeText').value = store.read('rt_resume');
+  $('savedLabel').textContent = has ? '“' + (cur.name || 'Main') + '” resume saved on this phone' : 'Resume saved on this phone';
+  if (cur) { $('resumeText').value = cur.text; $('baseName').value = cur.name || ''; }
+  $('baseChips').style.display = (bases.length > 1 || (bases.length === 1 && bases.length < 5 && has)) ? 'flex' : 'none';
+  $('baseChips').innerHTML = bases.map((b,i)=>
+    '<button class="chip'+(i===baseActive?' on':'')+'" data-base="'+i+'">'+esc(b.name||('Resume '+(i+1)))+'</button>').join('') +
+    (bases.length < 5 ? '<button class="chip" data-base="new">＋ New version</button>' : '');
+  store.write('rt_resume', cur ? cur.text : '');
+}
+$('baseChips').addEventListener('click', e => {
+  const c = e.target.closest('button[data-base]'); if (!c) return;
+  const bases = readBases();
+  if (c.dataset.base === 'new') {
+    if (bases.length >= 5) return;
+    bases.push({name:'', text:''}); writeBases(bases); baseActive = bases.length-1;
+    refreshResumeUI();
+    $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block';
+    $('resumeText').value=''; $('baseName').value=''; $('baseName').focus();
+    return;
+  }
+  baseActive = Number(c.dataset.base);
+  refreshResumeUI();
+  toast('Using “'+ (bases[baseActive].name || 'Resume '+(baseActive+1)) +'” ✓');
+});
+function saveActiveBase(){
+  const v = $('resumeText').value.trim();
+  if (v.length < 100) return false;
+  const bases = readBases();
+  const entry = { name: $('baseName').value.trim() || (bases[baseActive] && bases[baseActive].name) || 'Main', text: v };
+  if (bases[baseActive]) bases[baseActive] = entry; else { bases.push(entry); baseActive = bases.length-1; }
+  writeBases(bases);
+  return true;
 }
 $('saveResumeBtn').onclick = () => {
-  const v = $('resumeText').value.trim();
-  if (v.length < 100) return showErr('That resume looks too short — paste the whole thing.');
-  store.write('rt_resume', v); hideErr(); toast('Resume saved ✓'); refreshResumeUI();
+  if (!saveActiveBase()) return showErr('That resume looks too short — paste the whole thing.');
+  hideErr(); toast('Resume saved ✓'); refreshResumeUI();
 };
 $('editResumeBtn').onclick = () => { $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block'; };
 refreshResumeUI();
+// which base fits this job best? cheap keyword overlap, no API call
+function suggestBase(jobText){
+  const bases = readBases(); if (bases.length < 2) return null;
+  const jt = new Set((jobText.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
+  const scores = bases.map(b => {
+    const rt = new Set((b.text.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
+    let s = 0; jt.forEach(w => { if (rt.has(w)) s++; });
+    return s;
+  });
+  let best = 0; scores.forEach((s,i)=>{ if (s > scores[best]) best = i; });
+  if (best !== baseActive && scores[best] > (scores[baseActive]||0) * 1.15) {
+    return { index: best, name: bases[best].name || ('Resume '+(best+1)) };
+  }
+  return null;
+}
 $('accessCode').value = store.read('rt_code');
 // "your situation" — saved, pre-filled for the Kosovo → Spain plan
 const DEFAULT_PROFILE = 'Based in Kosovo (CET timezone — same as Spain and central Europe). Planning to move to Spain on the digital nomad visa, so the job must be fully remote for a non-Spanish company that allows working from Europe / anywhere, ideally paying at least €2,850/month gross (the visa’s income requirement). Fluent English; add your other languages here. Looking for remote customer service / support roles.';
@@ -306,21 +413,52 @@ $('profileText').addEventListener('input', () => {
 function readSettings(){
   try { return JSON.parse(store.read('rt_settings')||'{}') } catch { return {} }
 }
+const DEFAULT_SYNONYMS = 'support, success, helpdesk, customer care, client services, technical support, community, onboarding';
 function currentSettings(){
   return {
     dnvMonthly: Math.round(Number($('setDnv').value)) || 2849,
     fitThreshold: Math.round(Number($('setFit').value)) || 60,
     dnvVerified: '2026-09-09',
+    salaryFloor: Math.round(Number($('setFloor').value)) || 0,
+    country: $('setCountry').value.trim(),
+    targets: $('setTargets').value.trim(),
+    remote: $('setRemote').value,
+    langs: $('setLangs').value.trim(),
+    outputLanguage: $('setOutLang').value,
+    auth: $('setAuth').value.trim(),
+    sponsor: $('setSponsor').value.trim(),
+    notice: $('setNotice').value.trim(),
+    avail: $('setAvail').value.trim(),
+    titleSynonyms: $('setSynonyms').value.trim() || DEFAULT_SYNONYMS,
   };
+}
+// everything she is + her stored answers, sent with each request — nothing hard-coded server-side
+function composeProfile(){
+  const s = currentSettings();
+  const parts = [$('profileText').value.trim()];
+  if (s.country) parts.push('Currently living in: ' + s.country);
+  if (s.targets) parts.push('Plan / target countries: ' + s.targets);
+  parts.push('Work mode: ' + s.remote);
+  if (s.salaryFloor) parts.push('Personal salary floor: €' + s.salaryFloor + '/month gross');
+  if (s.langs) parts.push('Languages (CEFR as she stated): ' + s.langs);
+  if (s.auth) parts.push('Stored answer — work authorization: ' + s.auth);
+  if (s.sponsor) parts.push('Stored answer — sponsorship: ' + s.sponsor);
+  if (s.notice) parts.push('Stored answer — notice period / start: ' + s.notice);
+  if (s.avail) parts.push('Stored answer — availability: ' + s.avail);
+  return parts.filter(Boolean).join('\n').slice(0, 2000);
 }
 (() => {
   const s = readSettings();
-  $('setDnv').value = s.dnvMonthly || '';
-  $('setFit').value = s.fitThreshold || '';
-  for (const id of ['setDnv','setFit']) $(id).addEventListener('input', () => {
-    clearTimeout($(id)._t);
-    $(id)._t = setTimeout(()=> store.write('rt_settings', JSON.stringify(currentSettings())), 600);
-  });
+  const map = { setDnv:'dnvMonthly', setFit:'fitThreshold', setFloor:'salaryFloor', setCountry:'country',
+    setTargets:'targets', setRemote:'remote', setLangs:'langs', setOutLang:'outputLanguage',
+    setAuth:'auth', setSponsor:'sponsor', setNotice:'notice', setAvail:'avail', setSynonyms:'titleSynonyms' };
+  for (const [id, key] of Object.entries(map)) {
+    if (s[key]) $(id).value = s[key];
+    const save = () => { clearTimeout($(id)._t); $(id)._t = setTimeout(()=> store.write('rt_settings', JSON.stringify(currentSettings())), 600); };
+    $(id).addEventListener('input', save);
+    $(id).addEventListener('change', save);
+  }
+  if (!s.titleSynonyms) $('setSynonyms').value = DEFAULT_SYNONYMS;
   $('voiceText').value = store.read('rt_voice');
   $('voiceText').addEventListener('input', () => {
     clearTimeout($('voiceText')._t);
@@ -356,7 +494,7 @@ $('resumeFile').addEventListener('change', async e => {
     text = text.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
     if (text.length < 100) throw new Error('Couldn’t read much text from that file — try pasting instead.');
     $('resumeText').value = text;
-    store.write('rt_resume', text);
+    saveActiveBase();
     $('fileStatus').textContent = '✓ Loaded and saved ' + f.name + '.';
     toast('Resume saved ✓');
   } catch(err){
@@ -380,7 +518,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v13';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
   if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
     store.write('rt_reloaded', v.v);
@@ -424,7 +562,7 @@ async function doTailor(){
   hideErr();
   const resume = ($('resumeText').value || store.read('rt_resume')).trim();
   if (resume.length < 100) { $('resumeText').focus(); return showErr('Add your resume first (step 1) — paste it once and it stays saved.'); }
-  if ($('resumeText').value.trim().length > 100) store.write('rt_resume', $('resumeText').value.trim());
+  if ($('resumeText').value.trim().length > 100) saveActiveBase();
   const code = $('accessCode').value.trim(); if (code) store.write('rt_code', code);
 
   const jobRaw = $('jobInput').value.trim();
@@ -453,7 +591,9 @@ async function doTailor(){
       jobText = d.jobText;
     }
 
-    const tailorBody = { resume, jobText, accessCode: code, profile: $('profileText').value.trim(),
+    window._lastJobText = jobText;
+    window._baseSuggestion = suggestBase(jobText);
+    const tailorBody = { resume, jobText, accessCode: code, profile: composeProfile(),
       settings: currentSettings(), voice: store.read('rt_voice'), stream: true };
     const r2 = await fetch(API_BASE + '/api/tailor', {
       method:'POST', headers:{'content-type':'application/json'}, signal: ctrl.signal,
@@ -519,10 +659,7 @@ $('jobInput').addEventListener('paste', () => {
 let saveTimer = null;
 $('resumeText').addEventListener('input', () => {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const v = $('resumeText').value.trim();
-    if (v.length > 100) store.write('rt_resume', v);
-  }, 800);
+  saveTimer = setTimeout(saveActiveBase, 800);
 });
 
 // ---------- streaming: type the resume live while Claude writes ----------
@@ -795,6 +932,11 @@ function render(r, fromHistory){
       '<br>' + esc(dnv.note);
   }
   renderDiff();
+  // a different base resume matches this job better → one-tap switch & redo
+  const bs = !fromHistory && window._baseSuggestion;
+  $('baseSuggest').style.display = bs ? 'block' : 'none';
+  if (bs) $('baseSuggest').innerHTML = '<b>📄 Your “' + esc(bs.name) + '” resume looks like a better fit for this job.</b> ' +
+    '<button class="btn small" id="baseSwitchBtn" style="margin-top:6px">Use it and tailor again</button>';
   // anti-slop warning — only when a regenerate still didn't fix it
   const slop = r._slop;
   $('slopBanner').style.display = slop ? 'block' : 'none';
@@ -890,6 +1032,16 @@ function render(r, fromHistory){
 }
 function clamp(n){ n = Math.round(Number(n)||0); return Math.max(0, Math.min(100, n)); }
 function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+$('baseSuggest').addEventListener('click', e => {
+  if (e.target.id !== 'baseSwitchBtn' || !window._baseSuggestion) return;
+  baseActive = window._baseSuggestion.index;
+  window._baseSuggestion = null;
+  refreshResumeUI();
+  $('baseSuggest').style.display = 'none';
+  $('jobInput').value = window._lastJobText || '';
+  if ($('jobInput').value) doTailor();
+});
 
 // tabs
 $('tabs').addEventListener('click', e => {
