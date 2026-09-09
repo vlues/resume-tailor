@@ -571,7 +571,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
-const APP_VERSION = 'v21';
+const APP_VERSION = 'v22';
 document.getElementById('verTag').textContent = APP_VERSION;
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch {} }
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
@@ -1283,7 +1283,6 @@ if ((store.read('rt_resume')||'').length > 100) setTimeout(doTailor, 600);
 } catch {}
 })();
 
-const PARKER_EMAIL = 'parker.black26@icloud.com';   // where "proof I applied" goes
 const STATUSES = ['applied','replied','interview','offer','started','rejected','no response'];
 let currentHistId = null;
 function readHistory(){ try{ return JSON.parse(store.read('rt_history')||'[]') }catch{ return [] } }
@@ -1375,17 +1374,6 @@ return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
 + '&details=' + encodeURIComponent((body||'') + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
 }
 
-function proofEmail(e){
-const d = ts => ts ? new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
-const body = 'Applied \u2713\n\nJob: ' + (e.title||e.label) + '\nCompany: ' + (e.company||'?')
-+ '\nApplied: ' + d(e.appliedAt || Date.now())
-+ (e.url ? '\nPosting: ' + e.url : '')
-+ (e.score!=null ? '\nMatch score: ' + e.score + '%' : '')
-+ (e.dnv ? '\nVisa income check: ' + e.dnv : '')
-+ '\n\n(Screenshot of the confirmation page attached.)'
-+ '\n\nFull list: ' + API_BASE + '/api/apps?code=' + encodeURIComponent(store.read('rt_code')) + '&view=html';
-return mailtoFor('\u2705 Applied: ' + (e.title||e.label) + (e.company?' @ '+e.company:''), body, PARKER_EMAIL);
-}
 
 let syncTimer = null;
 function slimApp(e){
@@ -1461,15 +1449,10 @@ $('resultFu').innerHTML = e.appliedAt ? postApplyRow(e) : '';
 function postApplyRow(e){
 const idx = readHistory().findIndex(x => x.when === e.when);
 return '<div class="row" style="margin-top:8px">'+
-'<a class="btn small good" data-proof="'+idx+'" href="'+esc(proofEmail(e))+'">📸 Proof</a>'+
 '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Email hiring manager: '+(e.label||''), (e.appliedAt||Date.now())+3*DAY, outreachEmail(e).body))+'">🔔 Day-3 reminder</a>'+
 '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Follow up: '+(e.label||''), (e.appliedAt||Date.now())+7*DAY, followUpEmail(e).body))+'">🔔 Day-7 reminder</a>'+
 '</div>';
 }
-$('resultFu').addEventListener('click', ev => {
-const p = ev.target.closest('a[data-proof]');
-if (p) setTimeout(()=>{ updateEntry(currentHistId, e=>{ e.proofAt = Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
-});
 $('appliedBtn').onclick = () => {
 const e = entryById(currentHistId); if (!e) return;
 updateEntry(currentHistId, x => {
@@ -1488,7 +1471,6 @@ const d = ts => new Date(ts).toLocaleDateString(undefined,{month:'short',day:'nu
 if (!e.appliedAt) return 'Not applied yet';
 let out = '✓ Applied ' + d(e.appliedAt);
 if (e.status && e.status !== 'applied') out += ' · ' + e.status;
-if (e.proofAt) out += ' · 📸 proof sent';
 return out;
 }
 function dueRow(item){
@@ -1529,7 +1511,7 @@ const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'n
 const pct = e.score != null ? clamp(e.score)+'% · ' : '';
 const sel = e.appliedAt ? '<select class="sel" data-status="'+i+'" style="margin-top:6px;font-size:.85rem;padding:8px 10px">'+
 STATUSES.map(s=>'<option'+((e.status||'applied')===s?' selected':'')+'>'+s+'</option>').join('')+'</select>' : '';
-const proof = e.appliedAt && !e.proofAt ? '<a class="btn small" style="margin-top:6px;text-decoration:none" data-proofh="'+i+'" href="'+esc(proofEmail(e))+'">📸 Proof</a>' : '';
+const proof = '';
 return '<div class="job-row">'+
 '<button class="rowmain" data-i="'+i+'">'+
 '<b>'+esc(e.label)+'</b>'+
@@ -1551,13 +1533,7 @@ if ((s.value==='offer'||s.value==='started') && !x.startedAt) x.startedAt = Date
 });
 toast('Status: ' + s.value + ' ✓');
 });
-$('historyList').addEventListener('click', ev => {
-const p = ev.target.closest('a[data-proofh]');
-if (p){ const e = readHistory()[Number(p.dataset.proofh)];
-if (e) setTimeout(()=>{ updateEntry(e.when, x=>{ x.proofAt=Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
-return; }
-dueClick(ev);
-});
+$('historyList').addEventListener('click', dueClick);
 $('dueList').addEventListener('click', dueClick);
 
 const DNV_DOCS_DEFAULT = ['Passport valid 1+ year','Employment contract (3+ months old by filing day)','Employer letter allowing remote work from Spain','Proof employer has existed 1+ year','Payslips / proof of income ≥ €2,849 gross per month','Criminal-record certificate (apostilled)','Private health insurance valid in Spain','Degree certificate OR proof of 3+ years experience'];
@@ -1702,7 +1678,7 @@ const TUT_STEPS = [
 {t:'Your profile', x:'Tap “Profile” inside step 1 and check it once: your country, languages, and your standard answers. Every job check uses this — it’s what keeps everything honest and correct for you.', el:'resumeCard', b:'Next'},
 {t:'Step 2 — pick a job', x:'Fresh remote jobs picked for you, best first. ⚡ means apply today. 🌍 means it works from Kosovo. Tap any job and the rewrite starts by itself — or paste any job link in the box.', el:'jobCard', b:'Next'},
 {t:'What you get', x:'A rewritten resume (watch it type!), a match score, any deal-breakers up top, ready-to-copy form answers, a cover letter, and interview answers. Copy, download as Word, done.', b:'Next'},
-{t:'After you apply', x:'Tap “✅ I applied” on the result. The tool then reminds you at day 3, 7 and 14 with emails already written — and the 📸 Proof button sends Parker a note that you applied. That’s it. Good luck! 🍀', b:'Let’s go ✂️'},
+{t:'After you apply', x:'Tap “✅ I applied” on the result. The tool reminds you at day 3, 7 and 14 — with the emails already written for you. That’s it. Good luck! 🍀', b:'Let’s go ✂️'},
 ];
 let tutStep = 0, tutTarget = null;
 function tutShow(i){
