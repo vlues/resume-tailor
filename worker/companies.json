@@ -1,0 +1,20 @@
+{
+  "_comment": "Curated company boards known to hire remote support in/near Europe. Every slug verified live against its free public API on 2026-09-09. Keep the total board count ≤ ~40: the Cloudflare free tier allows 50 subrequests per run and the aggregators use ~7. eor_friendly = companies known to hire worldwide via EOR/contractor setups (a signal, not a promise).",
+  "greenhouse": [
+    "gitlab", "remotecom", "canonical", "wikimedia", "wise", "monzo",
+    "duolingo", "elastic", "grafanalabs", "typeform", "n26", "celonis",
+    "cloudflare", "intercom", "klaviyo", "twilio", "postman", "vercel",
+    "calendly", "airtable", "webflow"
+  ],
+  "lever": ["superside", "spotify", "binance", "qonto", "aircall", "nium", "ledger"],
+  "ashby": ["posthog", "supabase", "linear", "elevenlabs", "notion", "ramp", "sierra"],
+  "workable": ["zego"],
+  "company_names": {
+    "remotecom": "Remote.com", "grafanalabs": "Grafana Labs", "n26": "N26",
+    "posthog": "PostHog", "elevenlabs": "ElevenLabs", "gitlab": "GitLab"
+  },
+  "eor_friendly": [
+    "remote.com", "deel", "oyster", "safetywing", "canonical", "gitlab",
+    "superside", "binance", "posthog", "toggl", "doist", "automattic"
+  ]
+}

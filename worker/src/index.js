@@ -7,6 +7,7 @@
 // Secrets (wrangler secret put): ANTHROPIC_API_KEY (required), ACCESS_CODE (optional)
 
 import BANNED from '../banned.json';
+import COMPANIES from '../companies.json';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
 
@@ -29,7 +30,7 @@ export default {
       }
 
       if (url.pathname === '/api/jobs') {
-        return await jobsFeed(cors);
+        return await jobsFeed(url, env, cors);
       }
 
       if (request.method !== 'POST') {
@@ -58,6 +59,11 @@ export default {
     } catch (err) {
       return json({ error: 'server_error', message: String(err && err.message || err) }, 500, cors);
     }
+  },
+
+  // Cron Trigger (every 3h, see wrangler.toml): refresh the KV feed + digest.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(refreshFeedCron(env));
   },
 };
 
@@ -118,84 +124,183 @@ function friendlyClaudeError(status, errText) {
 
 // ------------------------------------------------------------------ jobs feed
 
-const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote[- ]?first|kosovo|spain|utc|cet|balkan/i;
-const TITLE_OK = /customer|support|success|service|helpdesk|help desk|client|community|care|happiness/i;
-const US_ONLY = /U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only/i;
-const FEED_CACHE_KEY = 'https://resume-tailor.internal/jobs-feed-v5';
+const DEFAULT_SYNONYMS = 'customer,support,success,service,helpdesk,help desk,client,community,care,happiness,onboarding';
+const LOCATION_OK = /worldwide|anywhere|global|international|europe|emea|remote|kosovo|spain|utc|cet|balkan|see posting|not specified/i;
+const STRONG_OK = /worldwide|anywhere|global|europe|emea/i;
+// Rejects: US/other-region locks, in-office, and US-timezone shift locks.
+const LOCATION_BAD = /U\.?S\.?[- .]?based|USA only|US only|United States only|Canada only|North America|Americas only|LATAM|APAC only|(?:\bEast\b|\bCentral\b|\bWest\b)(?!(?:ern)? ?Europe)|\bFederal\b|on[- ]?site|in[- ]?office|\bhybrid\b|\b[PECM][SD]?T\b ?(?:hours|time|business)/i;
 const UA = { 'User-Agent': 'ResumeTailor/1.0' };
 const CF_CACHE = { cf: { cacheTtl: 900, cacheEverything: true } };
+const EOR_FRIENDLY = new Set(COMPANIES.eor_friendly.map(c => normCo(c)));
 
-async function jobsFeed(cors) {
-  // Whole-feed cache: repeat loads within 10 minutes are instant.
-  const cache = caches.default;
-  const hit = await cache.match(FEED_CACHE_KEY).catch(() => null);
-  if (hit) {
-    const body = await hit.text();
-    return new Response(body, { status: 200, headers: { ...JSON_HEADERS, ...cors } });
-  }
+function normCo(c) { return String(c || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/com$/, ''); }
+function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-  // All sources in parallel; any one failing is fine.
+// Job locked to a specific country/region she can't work from (unless the
+// location also says Europe/anywhere).
+const WRONG_REGION = /colombia|india|philippines|brazil|mexico|nigeria|pakistan|indonesia|vietnam|china|japan|korea|australia|new zealand|singapore|malaysia|thailand|kenya|south africa|egypt|argentina|peru|chile|\bcanada\b|united states|\busa?\b|latam|apac/i;
+
+// Fetch every source live: aggregators + curated boards.
+// ~41 subrequests — stays under the free tier's 50/invocation.
+async function fetchAllRaw() {
+  const names = [
+    'Remotive', 'RemoteOK', 'WeWorkRemotely', 'Jobicy (Europe)', 'Jobicy (anywhere)',
+    ...COMPANIES.greenhouse.map(b => 'Board: ' + b), ...COMPANIES.ashby.map(b => 'Board: ' + b),
+    ...COMPANIES.lever.map(b => 'Board: ' + b), ...COMPANIES.workable.map(b => 'Board: ' + b),
+  ];
   const results = await Promise.allSettled([
-    fetchRemotive(), fetchRemoteOK(), fetchWWR(),
-    fetchJobicy('europe'), fetchJobicy('anywhere'),
-    fetchJobicy('europe', 'customer'), fetchJobicy('anywhere', 'customer'),
-    ...GH_BOARDS.map(fetchGreenhouseBoard),
-    ...ASHBY_BOARDS.map(fetchAshbyBoard),
+    fetchRemotive(), fetchRemoteOK(), fetchWWR(), fetchJobicy('europe'), fetchJobicy('anywhere'),
+    ...COMPANIES.greenhouse.map(fetchGreenhouseBoard), ...COMPANIES.ashby.map(fetchAshbyBoard),
+    ...COMPANIES.lever.map(fetchLeverBoard), ...COMPANIES.workable.map(fetchWorkableBoard),
   ]);
-  const jobs = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
-
-  // Rank by "landable for her": entry/mid support roles first, senior
-  // leadership down, work-from-anywhere and posted-salary up, fresher up.
-  const now = Date.now();
-  for (const j of jobs) {
-    let s = 0;
-    const t = j.title || '', loc = j.location || '';
-    const days = Math.max(0, (now - new Date(j.date).getTime()) / 86400000) || 10;
-    s -= Math.min(days, 30) * 1.5;
-    if (/anywhere|worldwide|global/i.test(loc)) s += 8;
-    else if (/emea|europe/i.test(loc)) s += 6;
-    if (j.salary) s += 3;
-    if (/director|head of|vp|vice president|principal|\blead\b|manager,? (of|customer success managers)/i.test(t)) s -= 14;
-    else if (/senior|\bsr\.?\b|staff\b/i.test(t)) s -= 6;
-    if (/representative|specialist|associate|agent|advocate|advisor|coordinator|analyst|support engineer/i.test(t)) s += 5;
-    j._score = s;
-  }
-  jobs.sort((a, b) => b._score - a._score || new Date(b.date) - new Date(a.date));
-  const seen = new Set();
-  const out = [];
-  for (const j of jobs) {
-    const k = (j.company + '|' + j.title).toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    delete j._score;
-    out.push(j);
-    if (out.length >= 60) break;
-  }
-
-  const body = JSON.stringify({ ok: true, jobs: out });
-  if (out.length >= 5) {
-    await cache.put(FEED_CACHE_KEY, new Response(body, {
-      headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=600' },
-    })).catch(() => {});
-  }
-  return new Response(body, { status: 200, headers: { ...JSON_HEADERS, ...cors } });
+  const down = names.filter((_, i) => results[i].status === 'rejected');
+  const raw = results.flatMap(r => r.status === 'fulfilled' ? r.value : [])
+    .filter(j => j && j.title && j.url)
+    .map(j => ({ ...j, ts: new Date(j.date).getTime() || 0 }));
+  return { raw, down };
 }
 
-// Remotive: public API with candidate_required_location (its category param is
-// unreliable — filter on the response's fields instead)
+// All hard filters in one place: title synonyms, location, freshness, dedupe.
+function filterFeed(raw, synCsv, freshDays) {
+  const syn = String(synCsv || DEFAULT_SYNONYMS).split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+  const titleRe = new RegExp(syn.map(escapeRe).join('|'), 'i');
+  const now = Date.now();
+  const seen = new Set();
+  const out = [];
+  for (const j0 of raw) {
+    const j = { ...j0 };
+    if (!titleRe.test(j.title)) continue;
+    const loc = j.location || '';
+    // a US-region/shift lock in the TITLE disqualifies even a "work from anywhere" row
+    if (LOCATION_BAD.test(j.title)) continue;
+    if (!STRONG_OK.test(loc)) {
+      if (LOCATION_BAD.test(loc)) continue;
+      if (WRONG_REGION.test(loc)) continue;
+      if (loc && !LOCATION_OK.test(loc)) continue;
+    }
+    if (!j.ts || now - j.ts > freshDays * 86400000) continue;   // unknown age = can't promise fresh
+    const key = normCo(j.company) + '|' + j.title.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    j.kosovoOk = /anywhere|worldwide|global|contractor|\beor\b/i.test(j.title + ' ' + loc) || EOR_FRIENDLY.has(normCo(j.company));
+    // landability score: entry/mid support up, leadership down, anywhere+salary up, fresh up
+    let s = 0;
+    s -= ((now - j.ts) / 86400000) * 2;
+    if (/anywhere|worldwide|global/i.test(loc)) s += 8;
+    else if (/emea|europe/i.test(loc)) s += 6;
+    if (j.kosovoOk) s += 4;
+    if (j.salary) s += 3;
+    if (/director|head of|vp|vice president|principal|\blead\b|manager,? (of|customer success managers)/i.test(j.title)) s -= 14;
+    else if (/senior|\bsr\.?\b|staff\b|engineer/i.test(j.title)) s -= 6;
+    if (/representative|specialist|associate|agent|advocate|advisor|coordinator/i.test(j.title)) s += 5;
+    j.score = Math.round(s * 10) / 10;
+    out.push(j);
+  }
+  out.sort((a, b) => b.score - a.score || b.ts - a.ts);
+  return out.slice(0, 80);
+}
+
+async function buildFeed(synCsv, freshDays) {
+  const { raw, down } = await fetchAllRaw();
+  return { jobs: filterFeed(raw, synCsv, freshDays), down, raw };
+}
+
+// GET /api/jobs?syn=…&fresh=7 — KV-cached for the default view (cron keeps it
+// warm); custom synonym lists build live. Stale KV is the last-ditch fallback.
+async function jobsFeed(url, env, cors) {
+  const syn = (url.searchParams.get('syn') || '').slice(0, 400);
+  const fresh = Math.min(30, Math.max(1, Number(url.searchParams.get('fresh')) || 7));
+  const isDefault = !syn && fresh === 7;
+
+  // Fresh raw jobs in KV (the cron keeps them warm) → filter and serve
+  // instantly, whatever her synonym list says. No upstream fetches.
+  let kvRaw = null;
+  if (env.JOBS_KV) {
+    try { kvRaw = JSON.parse(await env.JOBS_KV.get('feed:raw') || 'null'); } catch {}
+  }
+  if (kvRaw && kvRaw.raw && Date.now() - kvRaw.updated < 4 * 3600000) {
+    const jobs = filterFeed(kvRaw.raw, syn, fresh);
+    if (jobs.length) return json({ ok: true, jobs, updated: kvRaw.updated, down: kvRaw.down || [], cached: true }, 200, cors);
+  }
+  try {
+    const feed = await buildFeed(syn, fresh);
+    if (!feed.jobs.length) throw new Error('empty feed');
+    if (env.JOBS_KV) {
+      await env.JOBS_KV.put('feed:raw', JSON.stringify({ raw: trimRaw(feed.raw), updated: Date.now(), down: feed.down })).catch(() => {});
+    }
+    return json({ ok: true, jobs: feed.jobs, updated: Date.now(), down: feed.down }, 200, cors);
+  } catch (e) {
+    if (kvRaw && kvRaw.raw) {   // stale is better than blank — say how old it is
+      const jobs = filterFeed(kvRaw.raw, syn, 30);
+      if (jobs.length) return json({ ok: true, jobs, updated: kvRaw.updated, down: ['live refresh failed — showing the saved feed'], stale: true }, 200, cors);
+    }
+    return json({ error: 'feed_down', message: 'Couldn’t load jobs from any source right now. Paste a job link below instead — that still works.' }, 503, cors);
+  }
+}
+
+// Keep the KV raw store lean: only jobs from the last 8 days, needed fields only.
+function trimRaw(raw) {
+  const cutoff = Date.now() - 8 * 86400000;
+  return raw.filter(j => j.ts > cutoff)
+    .map(j => ({ title: j.title, company: j.company, url: j.url, location: j.location, date: j.date, ts: j.ts, salary: j.salary || '', source: j.source }));
+}
+
+// Cron (every 3h): rebuild the default feed into KV, then send the Telegram
+// digest if it's due. Failures leave the previous KV feed in place.
+async function refreshFeedCron(env) {
+  const feed = await buildFeed('', 7);
+  if (!feed.jobs.length) return;
+  if (env.JOBS_KV) await env.JOBS_KV.put('feed:raw', JSON.stringify({ raw: trimRaw(feed.raw), updated: Date.now(), down: feed.down })).catch(() => {});
+  await maybeTelegramDigest(env, feed.jobs).catch(() => {});
+}
+
+// One digest a day (top 5 new + Kosovo-relevant), or immediately when a very
+// strong job appears. Needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID secrets.
+async function maybeTelegramDigest(env, jobs) {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID || !env.JOBS_KV) return;
+  let sent = [];
+  try { sent = JSON.parse(await env.JOBS_KV.get('tg:sent') || '[]'); } catch {}
+  const sentSet = new Set(sent);
+  const now = Date.now();
+  const fresh = jobs.filter(j => !sentSet.has(j.url) && now - j.ts < 48 * 3600000);
+  if (!fresh.length) return;
+  const hot = fresh.filter(j => j.score >= 12 && j.kosovoOk);
+  const lastDigest = Number(await env.JOBS_KV.get('tg:lastDigest') || 0);
+  if (now - lastDigest < 20 * 3600000 && !hot.length) return;   // one message a day unless something is very good
+  const pick = (hot.length && now - lastDigest < 20 * 3600000 ? hot : fresh).slice(0, 5);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = pick.map(j => {
+    const hrs = Math.max(1, Math.round((now - j.ts) / 3600000));
+    return `• <b>${esc(j.title)}</b> — ${esc(j.company)}\n  ${esc(j.location)} · posted ${hrs}h ago · fit ${j.score}${j.kosovoOk ? ' · 🌍 Kosovo-OK' : ''}${j.salary ? ' · ' + esc(j.salary) : ''}\n  <a href="https://vlues.github.io/resume-tailor/?job=${encodeURIComponent(j.url)}">Tap to tailor</a>`;
+  });
+  const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', disable_web_page_preview: true,
+      text: (hot.length ? '🔥 Strong new match' + (pick.length > 1 ? 'es' : '') : '☀️ Today’s best new jobs') + ':\n\n' + lines.join('\n\n'),
+    }),
+  });
+  if (r.ok) {
+    for (const j of pick) sentSet.add(j.url);
+    await env.JOBS_KV.put('tg:sent', JSON.stringify([...sentSet].slice(-500)));
+    await env.JOBS_KV.put('tg:lastDigest', String(now));
+  }
+}
+
+// Fetchers return RAW jobs — the central filter in buildFeed() does all
+// title/location/freshness work so the rules live in exactly one place.
+
+// Remotive: public API with candidate_required_location
 async function fetchRemotive() {
   const jobs = [];
   const r = await fetch('https://remotive.com/api/remote-jobs?search=customer%20support&limit=100', CF_CACHE);
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
-    if (!TITLE_OK.test((j.title || '') + ' ' + (j.category || ''))) continue;
-    const loc = j.candidate_required_location || '';
-    if (loc && !LOCATION_OK.test(loc)) continue;
-    if (US_ONLY.test((j.title || '') + ' ' + loc)) continue;
     jobs.push({
       title: j.title, company: j.company_name, url: j.url,
-      location: loc || 'Not specified', date: j.publication_date,
+      location: j.candidate_required_location || 'Not specified', date: j.publication_date,
       salary: j.salary || '', source: 'Remotive',
     });
   }
@@ -210,14 +315,10 @@ async function fetchRemoteOK() {
   const d = await r.json();
   for (const j of (Array.isArray(d) ? d : [])) {
     if (!j || !j.position || !j.url) continue;
-    if (!TITLE_OK.test(j.position)) continue;
-    const loc = j.location || '';
-    if (loc && !LOCATION_OK.test(loc)) continue;
-    if (US_ONLY.test(j.position + ' ' + loc)) continue;
     const salary = j.salary_min ? `$${Math.round(j.salary_min/1000)}k–$${Math.round((j.salary_max||j.salary_min)/1000)}k` : '';
     jobs.push({
       title: j.position, company: j.company, url: j.url,
-      location: loc || 'Not specified', date: j.date, salary, source: 'RemoteOK',
+      location: j.location || 'Not specified', date: j.date, salary, source: 'RemoteOK',
     });
   }
   return jobs;
@@ -241,8 +342,6 @@ async function fetchWWR() {
     if (!rawTitle || !link) continue;
     const [company, ...rest] = rawTitle.split(': ');
     let title = rest.join(': ') || rawTitle;
-    if (!TITLE_OK.test(title)) continue;
-    if (US_ONLY.test(title + ' ' + region)) continue;
     const sal = /\$\s?\d[\d,.]*k?(?:\s?[-–]\s?\$?\d[\d,.]*k?)?(?:\s?\/\s?(?:year|yr|month|mo|hour|hr))?/i.exec(title);
     title = title.split(/ — | – | \(|\||,? \$/)[0].replace(/[-–—\s]+$/, '').trim() || title;
     jobs.push({ title, company: company || '', url: link, location: region, date, salary: sal ? sal[0].replace(/\s+/g, '') : '', source: 'WeWorkRemotely' });
@@ -250,10 +349,11 @@ async function fetchWWR() {
   return jobs;
 }
 
-// Direct company boards (Greenhouse public API) — companies that hire remote
-// support at volume; the most legit listings there are.
-const GH_BOARDS = ['gitlab', 'remotecom', 'canonical', 'wikimedia'];
-const GH_LOC_OK = /emea|europe|world|anywhere|global/i;
+// Company boards — free public APIs, one subrequest each. The board rosters
+// live in worker/companies.json (verified 2026-09-09).
+function boardName(board) {
+  return COMPANIES.company_names[board] || board.charAt(0).toUpperCase() + board.slice(1);
+}
 
 async function fetchGreenhouseBoard(board) {
   const jobs = [];
@@ -261,21 +361,17 @@ async function fetchGreenhouseBoard(board) {
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
-    if (!TITLE_OK.test(j.title || '')) continue;
+    // only remote-ish rows — board APIs list every office role
     const loc = (j.location && j.location.name) || '';
-    if (!GH_LOC_OK.test(loc + ' ' + j.title)) continue;
-    if (US_ONLY.test(j.title + ' ' + loc)) continue;
+    if (!/emea|europe|world|anywhere|global|remote/i.test(loc + ' ' + j.title)) continue;
     jobs.push({
-      title: j.title, company: board === 'remotecom' ? 'Remote.com' : board.charAt(0).toUpperCase() + board.slice(1),
+      title: j.title, company: boardName(board),
       url: j.absolute_url, location: loc || 'Remote', date: j.updated_at || j.first_published,
-      salary: '', source: 'Company board',
+      salary: '', source: 'Company board (Greenhouse)',
     });
   }
   return jobs;
 }
-
-// Ashby public posting API — more direct company boards with EMEA support roles.
-const ASHBY_BOARDS = ['posthog', 'supabase'];
 
 async function fetchAshbyBoard(board) {
   const jobs = [];
@@ -283,32 +379,61 @@ async function fetchAshbyBoard(board) {
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
-    if (!TITLE_OK.test(j.title || '')) continue;
     const loc = [j.location, ...((j.secondaryLocations || []).map(x => x.location))].filter(Boolean).join('; ');
-    if (!/emea|europe|world|anywhere|global/i.test(loc + ' ' + j.title)) continue;
-    if (US_ONLY.test(j.title + ' ' + loc)) continue;
+    if (!/emea|europe|world|anywhere|global|remote/i.test(loc + ' ' + j.title + (j.isRemote ? ' remote' : ''))) continue;
     jobs.push({
-      title: j.title, company: board.charAt(0).toUpperCase() + board.slice(1),
+      title: j.title, company: boardName(board),
       url: j.jobUrl || j.applyUrl, location: loc || 'Remote', date: j.publishedAt,
-      salary: '', source: 'Company board',
+      salary: '', source: 'Company board (Ashby)',
     });
   }
   return jobs;
 }
 
-// Jobicy: public API with region + industry/tag filters (credit: jobicy.com)
-async function fetchJobicy(geo, tag) {
+async function fetchLeverBoard(board) {
   const jobs = [];
-  const filter = tag ? `tag=${tag}` : 'industry=supporting';
-  const r = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&${filter}`, { headers: UA, ...CF_CACHE });
+  const r = await fetch(`https://api.lever.co/v0/postings/${board}?limit=100`, { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of (Array.isArray(d) ? d : [])) {
+    const cat = j.categories || {};
+    const loc = [cat.location, ...(cat.allLocations || [])].filter(Boolean).join('; ');
+    if (j.workplaceType !== 'remote' && !/emea|europe|world|anywhere|global|remote/i.test(loc)) continue;
+    jobs.push({
+      title: j.text, company: boardName(board),
+      url: j.hostedUrl, location: loc || 'Remote', date: new Date(j.createdAt || 0).toISOString(),
+      salary: '', source: 'Company board (Lever)',
+    });
+  }
+  return jobs;
+}
+
+async function fetchWorkableBoard(board) {
+  const jobs = [];
+  const r = await fetch(`https://apply.workable.com/api/v1/widget/accounts/${board}?details=false`, { headers: UA, ...CF_CACHE });
+  if (!r.ok) return jobs;
+  const d = await r.json();
+  for (const j of d.jobs || []) {
+    const loc = [j.city, j.state, j.country].filter(Boolean).join(', ');
+    if (!j.telecommuting && !/emea|europe|world|anywhere|global|remote/i.test(loc + ' ' + j.title)) continue;
+    jobs.push({
+      title: j.title, company: d.name || boardName(board),
+      url: j.url, location: (j.telecommuting ? 'Remote — ' : '') + (loc || 'Remote'), date: j.published_on || j.created_at,
+      salary: '', source: 'Company board (Workable)',
+    });
+  }
+  return jobs;
+}
+
+// Jobicy: public API with region + industry filters (credit: jobicy.com)
+async function fetchJobicy(geo) {
+  const jobs = [];
+  const r = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&geo=${geo}&industry=supporting`, { headers: UA, ...CF_CACHE });
   if (!r.ok) return jobs;
   const d = await r.json();
   for (const j of d.jobs || []) {
     if (!j.jobTitle || !j.url) continue;
-    if (!TITLE_OK.test(j.jobTitle)) continue;
     const loc = Array.isArray(j.jobGeo) ? j.jobGeo.join(', ') : (j.jobGeo || '');
-    if (loc && !LOCATION_OK.test(loc)) continue;
-    if (US_ONLY.test(j.jobTitle + ' ' + loc)) continue;
     let salary = '';
     if (j.annualSalaryMin) {
       const cur = j.salaryCurrency === 'EUR' ? '€' : j.salaryCurrency === 'GBP' ? '£' : '$';

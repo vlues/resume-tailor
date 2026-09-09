@@ -11,3 +11,14 @@ CLAUDE_MODEL = "claude-sonnet-5"
 # Secrets are NOT set here — use ./setup-api.sh (or `wrangler secret put`):
 #   ANTHROPIC_API_KEY   — required
 #   ACCESS_CODE         — optional; if set, the site asks for it once
+#   TELEGRAM_BOT_TOKEN  — optional; enables the daily job digest
+#   TELEGRAM_CHAT_ID    — optional; where the digest goes
+
+# Feed cache + Telegram bookkeeping (free tier)
+[[kv_namespaces]]
+binding = "JOBS_KV"
+id = "5081319f77164469bf8f332a64963c8f"
+
+# Refresh the jobs feed into KV every 3 hours (and send the digest when due)
+[triggers]
+crons = ["0 */3 * * *"]

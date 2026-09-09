@@ -518,7 +518,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v13';
+const APP_VERSION = 'v14';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
   if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
     store.write('rt_reloaded', v.v);
@@ -1125,23 +1125,53 @@ $('dlWordBtn').onclick = async ()=>{
   $('dlWordBtn').textContent = old;
   showKitNext();
 };
-// ---------- jobs feed: found for her, one tap tailors ----------
-function timeAgo(d){
-  const t = new Date(d).getTime();
-  if (!isFinite(t)) return 'new';
-  const days = Math.floor((Date.now() - t) / 86400000);
-  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
+// ---------- jobs feed: found for her, top 5 today, one tap tailors ----------
+function timeAgo(ts){
+  if (!isFinite(ts) || !ts) return 'new';
+  const h = Math.max(1, Math.round((Date.now() - ts) / 3600000));
+  if (h < 48) return 'posted ' + h + 'h ago';
+  return 'posted ' + Math.round(h/24) + ' days ago';
 }
-let feedAll = [], feedExpanded = false;
+// salary string → rough €/month, for the visa chip (always labeled ≈ estimate)
+function salaryMonthly(sal){
+  if (!sal) return 0;
+  const c=String(sal).replace(/,/g,'');
+  const m = c.match(/(\d+(?:\.\d+)?)\s*k/i) || c.match(/(\d{4,6})/);
+  if (!m) return 0;
+  let n = Number(m[1]); if (/k/i.test(String(sal))) n *= 1000;
+  if (/\/\s?(month|mo)\b/i.test(String(sal)) || n < 8000) return Math.round(n);
+  return Math.round(n / 12);
+}
+let feedAll = [], feedExpanded = false, feedMeta = {};
 function seenUrls(){ try{ return new Set(JSON.parse(store.read('rt_seen')||'[]')) }catch{ return new Set() } }
+// fit = server landability + overlap between the job title and her resume/synonyms
+function fitScore(j){
+  const resume = (store.read('rt_resume')||'').toLowerCase();
+  const syn = currentSettings().titleSynonyms.toLowerCase();
+  let s = Number(j.score)||0;
+  for (const w of (String(j.title).toLowerCase().match(/[a-z\u00e0-\u00ff]{4,}/g)||[])) {
+    if (syn.includes(w)) s += 2;
+    else if (resume.includes(w)) s += 0.7;
+  }
+  const days = (Date.now()-(j.ts||0))/86400000;
+  return s * (days<=1 ? 1.3 : days<=4 ? 1.15 : 1);      // fit × freshness
+}
 function feedRows(jobs){
   const seen = seenUrls();
+  const dnvNeed = currentSettings().dnvMonthly;
   return jobs.map(j => {
-    const where = /anywhere/i.test(j.location) ? 'Work from anywhere' : esc(j.location);
+    const where = /anywhere|worldwide/i.test(j.location) ? 'Work from anywhere' : esc(j.location);
     const isNew = !seen.has(j.url);
+    const fresh = j.ts && (Date.now()-j.ts) < 96*3600000;
+    const mo = salaryMonthly(j.salary);
+    const dnvChip = mo ? (mo >= dnvNeed
+      ? ' · <span style="color:var(--good)">≈€'+mo.toLocaleString('en')+'/mo — visa ✓</span>'
+      : ' · <span style="color:var(--warn)">≈€'+mo.toLocaleString('en')+'/mo — under visa need</span>') : '';
     return '<button class="job-row" data-url="'+esc(j.url)+'">'+
-      '<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+'</b>'+
-      '<span class="meta">'+esc(j.company)+' · '+where+(j.salary ? ' · '+esc(j.salary) : '')+' · '+esc(timeAgo(j.date))+'</span>'+
+      '<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+
+      (fresh?' <span class="kw" style="font-size:.72rem;padding:2px 8px" title="'+esc(j.source||'')+'">⚡ apply now</span>':'')+'</b>'+
+      '<span class="meta"><b style="color:var(--ink)">'+esc(timeAgo(j.ts))+'</b> · '+esc(j.company)+' · '+where+
+      (j.kosovoOk?' · 🌍 Kosovo-OK':'')+(j.salary ? ' · '+esc(j.salary) : '')+dnvChip+'</span>'+
     '</button>';
   }).join('');
 }
@@ -1152,24 +1182,38 @@ function markSeen(jobs){
     store.write('rt_seen', JSON.stringify([...s].slice(-300)));
   } catch {}
 }
+function googleJobsUrl(){
+  const syn = currentSettings().titleSynonyms.split(',')[0].trim() || 'customer support';
+  return 'https://www.google.com/search?q=' + encodeURIComponent('"' + syn + '" remote jobs') + '&ibp=htl;jobs';
+}
+function paintFeed(){
+  feedAll.sort((a,b)=>fitScore(b)-fitScore(a));
+  const top = feedExpanded ? feedAll : feedAll.slice(0, 5);
+  let note = '';
+  if (feedMeta.stale) note = '<p class="muted">⚠️ Live refresh failed — this is the saved feed ('+esc(timeAgo(feedMeta.updated).replace('posted ',''))+').</p>';
+  else if ((feedMeta.down||[]).length) note = '<p class="muted">Some sources didn’t answer ('+esc(feedMeta.down.slice(0,3).join(', '))+(feedMeta.down.length>3?'…':'')+') — showing the rest.</p>';
+  $('feedList').innerHTML = note + feedRows(top) +
+    (!feedExpanded && feedAll.length > 5 ? '<p class="muted" style="margin:10px 0 0">Your top 5 today — a few great applications beat many rushed ones. “More jobs” shows the rest.</p>' : '') +
+    '<p style="margin:10px 0 0"><a class="btn small" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(googleJobsUrl())+'">🔍 Also search Google Jobs</a> <span class="muted" style="font-size:.8rem">fills roles ≈3× better than LinkedIn</span></p>';
+}
 async function loadFeed(){
   feedExpanded = false;
-  // show the cached copy instantly, then refresh it in the background
   try {
     const cached = JSON.parse(store.read('rt_feed') || 'null');
-    if (cached && cached.length) { feedAll = cached; $('feedList').innerHTML = feedRows(feedAll.slice(0, 10)); }
+    if (cached && cached.length && cached[0].ts) { feedAll = cached; paintFeed(); }
     else $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>';
   } catch { $('feedList').innerHTML = '<p class="muted">Finding today’s jobs…</p>'; }
   try {
-    const r = await fetch(API_BASE + '/api/jobs');
+    const syn = encodeURIComponent(currentSettings().titleSynonyms);
+    const r = await fetch(API_BASE + '/api/jobs?syn=' + syn);
     const d = await r.json();
-    if (!d.jobs || !d.jobs.length) throw new Error('empty');
-    feedAll = d.jobs;
+    if (!d.jobs || !d.jobs.length) throw new Error(d.message || 'empty');
+    feedAll = d.jobs; feedMeta = { down: d.down, stale: d.stale, updated: d.updated };
     store.write('rt_feed', JSON.stringify(feedAll));
-    if (!feedExpanded) $('feedList').innerHTML = feedRows(feedAll.slice(0, 10));
+    paintFeed();
     setTimeout(()=> markSeen(feedAll), 4000);   // dots show this visit, gone next
-  } catch {
-    if (!feedAll.length) $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now — tap 🔄 More jobs, or paste a job link below.</p>';
+  } catch (e) {
+    if (!feedAll.length) $('feedList').innerHTML = '<p class="muted">Couldn’t load jobs right now ('+esc(e.message||'network')+'). Paste a job link below — that still works — or try 🔄 again in a minute.</p>';
   }
 }
 $('feedList').addEventListener('click', e => {
@@ -1179,10 +1223,21 @@ $('feedList').addEventListener('click', e => {
   window.scrollTo({top: $('loadingMsg').offsetTop - 160, behavior: 'smooth'});
 });
 $('feedRefresh').onclick = () => {
-  if (!feedExpanded && feedAll.length > 8) { $('feedList').innerHTML = feedRows(feedAll); feedExpanded = true; }
+  if (!feedExpanded && feedAll.length > 5) { feedExpanded = true; paintFeed(); }
   else loadFeed();
 };
 loadFeed();
+// Telegram digest deep link: ?job=<url> arrives pre-loaded and starts tailoring
+(() => {
+  try {
+    const u = new URLSearchParams(location.search).get('job');
+    if (u && looksLikeUrl(u)) {
+      $('jobInput').value = u;
+      history.replaceState(null, '', location.pathname);
+      if ((store.read('rt_resume')||'').length > 100) setTimeout(doTailor, 600);
+    }
+  } catch {}
+})();
 
 // ---------- history + applied tracker ----------
 let currentHistId = null;
