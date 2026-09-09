@@ -32,6 +32,9 @@ export default {
       if (url.pathname === '/api/jobs') {
         return await jobsFeed(url, env, cors);
       }
+      if (url.pathname === '/api/apps') {
+        return await appsStore(request, url, env, cors);
+      }
 
       if (request.method !== 'POST') {
         return json({ error: 'Not found' }, 404, cors);
@@ -613,6 +616,96 @@ function stripTags(html) {
 function titleFrom(html) {
   const m = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
   return m ? stripTags(m[1]).slice(0, 120) : '';
+}
+
+// ---------------------------------------------------- application records (KV)
+
+// GET  /api/apps?code=X            → her records (JSON)
+// GET  /api/apps?code=X&view=html  → Parker's read-only verification page
+// POST /api/apps {accessCode, apps:[…]} → merge by id, newest updatedAt wins.
+// Records are slim (no full AI results) and keyed by the access code, so they
+// survive a cleared browser and Parker can confirm applications really happened.
+async function appsStore(request, url, env, cors) {
+  if (!env.ACCESS_CODE) return json({ error: 'no_code_set', message: 'Application sync needs an access code — Parker has to set one with setup-api.sh.' }, 503, cors);
+  if (!env.JOBS_KV) return json({ error: 'no_kv', message: 'Storage isn’t set up on the server — tell Parker.' }, 503, cors);
+
+  const key = 'apps:v1';
+  const load = async () => { try { return JSON.parse(await env.JOBS_KV.get(key) || '[]'); } catch { return []; } };
+
+  if (request.method === 'GET') {
+    if ((url.searchParams.get('code') || '').trim() !== env.ACCESS_CODE) {
+      return json({ error: 'bad_code', message: 'Wrong access code.' }, 401, cors);
+    }
+    const apps = await load();
+    if (url.searchParams.get('view') === 'html') return appsHtml(apps, cors);
+    if (url.searchParams.get('format') === 'csv') return appsCsv(apps, cors);
+    return json({ ok: true, apps }, 200, cors);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  if (String(body.accessCode || '').trim() !== env.ACCESS_CODE) {
+    return json({ error: 'bad_code', message: 'That access code isn’t right — check it in the 🔑 box.' }, 401, cors);
+  }
+  const incoming = Array.isArray(body.apps) ? body.apps.slice(0, 200) : [];
+  const existing = await load();
+  const byId = new Map(existing.map(a => [a.id, a]));
+  for (const a of incoming) {
+    if (!a || !a.id) continue;
+    const slim = {
+      id: a.id, label: String(a.label || '').slice(0, 160),
+      company: String(a.company || '').slice(0, 80), title: String(a.title || '').slice(0, 120),
+      url: String(a.url || '').slice(0, 500), source: a.source === 'feed' ? 'feed' : 'pasted',
+      contact: String(a.contact || '').slice(0, 160),
+      appliedAt: a.appliedAt || null, outreachAt: a.outreachAt || null,
+      fu1At: a.fu1At || null, fu2At: a.fu2At || null, proofAt: a.proofAt || null,
+      status: String(a.status || 'applied').slice(0, 20), startedAt: a.startedAt || null,
+      score: Number(a.score) || null, dnv: String(a.dnv || '').slice(0, 12),
+      resume: String(a.resume || '').slice(0, 6000), cover_note: String(a.cover_note || '').slice(0, 2000),
+      updatedAt: a.updatedAt || Date.now(),
+    };
+    const cur = byId.get(a.id);
+    if (!cur || (slim.updatedAt >= (cur.updatedAt || 0))) byId.set(a.id, slim);
+  }
+  const merged = [...byId.values()].sort((x, y) => (y.appliedAt || y.id) - (x.appliedAt || x.id)).slice(0, 300);
+  await env.JOBS_KV.put(key, JSON.stringify(merged));
+  // read-back confirm: the UI only says "saved" when this count comes home
+  return json({ ok: true, saved: true, count: merged.length }, 200, cors);
+}
+
+function appsCsv(apps, cors) {
+  const cols = ['appliedAt', 'company', 'title', 'status', 'score', 'dnv', 'source', 'outreachAt', 'fu1At', 'fu2At', 'proofAt', 'url'];
+  const fmt = v => v == null ? '' : /At$/.test('' + v) ? v : String(v);
+  const d = ts => ts ? new Date(ts).toISOString().slice(0, 10) : '';
+  const rows = apps.map(a => [d(a.appliedAt), a.company, a.title, a.status, a.score ?? '', a.dnv, a.source, d(a.outreachAt), d(a.fu1At), d(a.fu2At), d(a.proofAt), a.url]
+    .map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(','));
+  return new Response(cols.join(',') + '\n' + rows.join('\n'), {
+    status: 200,
+    headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="applications.csv"', ...cors },
+  });
+}
+
+// Read-only page for Parker: is she applying, and with what?
+function appsHtml(apps, cors) {
+  const e = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const d = ts => ts ? new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—';
+  const applied = apps.filter(a => a.appliedAt);
+  const wk = applied.filter(a => Date.now() - a.appliedAt < 7 * 86400000).length;
+  const rows = apps.map(a => `<tr>
+    <td>${d(a.appliedAt)}</td><td><b>${e(a.title)}</b><br>${e(a.company)}</td>
+    <td>${e(a.status)}${a.proofAt ? ' 📸' : ''}</td><td>${a.score ?? '—'}%</td><td>${e(a.dnv || '—')}</td>
+    <td>${d(a.outreachAt)} / ${d(a.fu1At)} / ${d(a.fu2At)}</td>
+    <td>${a.url ? `<a href="${e(a.url)}">job</a>` : ''}</td>
+    <td><details><summary>resume + note</summary><pre>${e(a.resume)}</pre><hr><p>${e(a.cover_note)}</p></details></td>
+  </tr>`).join('');
+  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Applications — verification</title>
+  <style>body{font:15px/1.5 -apple-system,sans-serif;margin:16px;color:#222}table{border-collapse:collapse;width:100%}
+  td,th{border-bottom:1px solid #ddd;padding:8px 6px;text-align:left;vertical-align:top;font-size:.9em}
+  pre{white-space:pre-wrap;font-size:.85em;background:#f6f6f6;padding:8px;border-radius:8px;max-height:300px;overflow:auto}</style>
+  <h2>📋 Her applications (${applied.length} applied · ${wk} this week)</h2>
+  <p>📸 = she sent proof. Dates column = outreach / follow-up 1 / follow-up 2.</p>
+  <table><tr><th>Applied</th><th>Job</th><th>Status</th><th>Match</th><th>Visa</th><th>Sent</th><th>Link</th><th>What she sent</th></tr>${rows}</table>`;
+  return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', ...cors } });
 }
 
 // ---------------------------------------------------------------- anti-slop

@@ -110,10 +110,10 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 
 <div class="wrap">
 
-  <!-- follow-ups due today -->
+  <!-- due today -->
   <section class="card" id="dueCard" style="display:none;border-color:rgba(224,138,0,.45)">
-    <h2>⏰ Follow up today</h2>
-    <p class="hint">The email is already written — one tap, add the address (or paste it in the application portal), send.</p>
+    <h2>⏰ Due today</h2>
+    <p class="hint">Each email is already written — tap it, add the address, send. Nothing is ever sent for you.</p>
     <div id="dueList"></div>
   </section>
 
@@ -308,11 +308,21 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
     </div>
   </section>
 
-  <!-- history -->
+  <!-- visa clock -->
+  <section class="card" id="dnvClockCard" style="display:none;border-color:rgba(31,169,113,.45)">
+    <h2>🇪🇸 Visa clock</h2>
+    <div id="dnvClockBody"></div>
+  </section>
+
+  <!-- applications -->
   <section class="card" id="historyCard" style="display:none">
-    <h2>🕘 Your applications</h2>
-    <p class="hint">Tap ✅ after you apply — you’ll get a follow-up reminder here 5 days later.</p>
+    <h2>🗂 Your applications</h2>
+    <p class="hint">Tap ✅ after you apply. Reminders show at the top of this page: hiring-manager email at day 3, follow-ups at day 7 and 14 — the 🔔 buttons put them on your phone’s calendar too.</p>
     <div id="historyList"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn small" id="csvBtn">⬇️ Export CSV</button>
+      <span class="muted" id="syncStatus" style="align-self:center"></span>
+    </div>
   </section>
 
   <footer>Made with ❤️ · Your resume never leaves this page except to tailor it · Nothing is stored on any server</footer>
@@ -518,7 +528,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 
 // ---------- auto-update: her phone (especially the home-screen app) caches this
 // page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
   if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
     store.write('rt_reloaded', v.v);
@@ -619,6 +629,7 @@ async function doTailor(){
       if (result._salvage) toast('Resume’s ready — extras didn’t load this time');
     }
     if (jobUrl) result.job_url = jobUrl;
+    result._fromFeed = !!window._jobFromFeed; window._jobFromFeed = false;
     $('jobInput').value = '';   // ready for the next job
     $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
     // anti-slop gate: mechanical scan + cheap grader; one regenerate with the
@@ -1219,6 +1230,7 @@ async function loadFeed(){
 $('feedList').addEventListener('click', e => {
   const b = e.target.closest('button[data-url]'); if (!b) return;
   $('jobInput').value = b.dataset.url;
+  window._jobFromFeed = true;
   doTailor();
   window.scrollTo({top: $('loadingMsg').offsetTop - 160, behavior: 'smooth'});
 });
@@ -1239,19 +1251,171 @@ loadFeed();
   } catch {}
 })();
 
-// ---------- history + applied tracker ----------
+// ---------- applications: tracking, reminders, outreach, sync, proof ----------
+const PARKER_EMAIL = 'parker.black26@icloud.com';   // where "proof I applied" goes
+const STATUSES = ['applied','replied','interview','offer','started','rejected','no response'];
 let currentHistId = null;
 function readHistory(){ try{ return JSON.parse(store.read('rt_history')||'[]') }catch{ return [] } }
-function writeHistory(h){ store.write('rt_history', JSON.stringify(h.slice(0, 12))); }
+function writeHistory(h){ store.write('rt_history', JSON.stringify(h.slice(0, 50))); scheduleSync(); }
+function touch(e){ e.updatedAt = Date.now(); }
+// migrate old entries (followedUpAt → fu1At, add status)
+(() => {
+  const h = readHistory(); let changed=false;
+  for (const e of h){
+    if (e.followedUpAt && !e.fu1At){ e.fu1At = e.followedUpAt; delete e.followedUpAt; changed=true; }
+    if (e.appliedAt && !e.status){ e.status='applied'; changed=true; }
+  }
+  if (changed) store.write('rt_history', JSON.stringify(h));
+})();
 function saveHistory(r){
   const h = readHistory();
   currentHistId = Date.now();
-  h.unshift({ when: currentHistId, label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job', result: r });
+  h.unshift({
+    when: currentHistId, label: [r.job_title, r.company].filter(Boolean).join(' — ') || 'Untitled job',
+    company: r.company||'', title: r.job_title||'', url: r.job_url||'',
+    source: r._fromFeed ? 'feed' : 'pasted',
+    score: r.match_after ?? null, dnv: (r.dnv_fit && r.dnv_fit.status) || '',
+    status: 'tailored', updatedAt: Date.now(), result: r,
+  });
   writeHistory(h);
-  renderHistory();
-  refreshAppliedBtn();
+  renderHistory(); renderDue(); refreshAppliedBtn();
 }
 function entryById(id){ return readHistory().find(e => e.when === id); }
+function updateEntry(id, fn){
+  const h = readHistory(); const e = h.find(x=>x.when===id); if(!e) return;
+  fn(e); touch(e); writeHistory(h);
+  renderHistory(); renderDue(); refreshAppliedBtn(); renderDnvClock();
+}
+
+// ---- due engine: outreach day 3, follow-up day 7 and 14, then archive
+const DAY = 86400000;
+function dueItems(){
+  const now = Date.now(); const out = [];
+  const h = readHistory(); let autoArchived = false;
+  h.forEach((e,i)=>{
+    if (!e.appliedAt || !['applied','replied'].includes(e.status||'')) {
+      if (e.appliedAt && e.status==='applied') {} // fallthrough below
+    }
+    if (!e.appliedAt) return;
+    if (e.status !== 'applied') return;
+    const age = now - e.appliedAt;
+    if (age >= 21*DAY && e.fu2At){ e.status='no response'; touch(e); autoArchived = true; return; }
+    if (age >= 3*DAY && !e.outreachAt) out.push({e,i,type:'outreach'});
+    else if (age >= 7*DAY && !e.fu1At) out.push({e,i,type:'fu1'});
+    else if (age >= 14*DAY && e.fu1At && !e.fu2At) out.push({e,i,type:'fu2'});
+  });
+  if (autoArchived) store.write('rt_history', JSON.stringify(h));
+  return out;
+}
+
+// ---- pre-written emails (honest, short; she always taps send herself)
+function outreachEmail(e){
+  const t = e.title || (e.result&&e.result.job_title) || 'the role';
+  const c = e.company || (e.result&&e.result.company) || '';
+  const n = (e.result&&e.result.candidate_name) || '';
+  const hook = (e.result && e.result.cover_note || '').split(/(?<=[.!?])\s+/)[0] || '';
+  const body = 'Hi' + ' — I applied for the ' + t + ' position a few days ago and wanted to reach out directly. '
+    + (hook ? hook + ' ' : '')
+    + 'I\u2019d be glad to share anything else that helps you decide. Either way, thanks for reading this far.\n\n'
+    + n;
+  return { subject: 'Quick note about my ' + t + ' application' + (c?' — '+c:''), body,
+    note: 'Find the hiring manager\u2019s name on the posting or the company\u2019s LinkedIn/team page, and add one line with their name. If you can\u2019t find an email, send it through the application portal\u2019s message box.' };
+}
+function followUpEmail(e, second){
+  const r = e.result || {};
+  const t = e.title || r.job_title || 'the role', c = e.company || r.company || '', n = r.candidate_name || '';
+  const when = new Date(e.appliedAt || e.when).toLocaleDateString(undefined,{month:'long',day:'numeric'});
+  const body = (!second && r.follow_up && r.follow_up.length > 30) ? r.follow_up
+    : 'Hi' + (c ? ' ' + c + ' team' : '') + ',\n\n'
+      + (second
+        ? 'Checking in one last time on my ' + t + ' application from ' + when + ' \u2014 still very interested. If the role is filled, no reply needed; I\u2019ll take silence as a no and wish you a great hire.\n\n'
+        : 'I applied for the ' + t + ' position on ' + when + ' and wanted to check in \u2014 I\u2019m still really interested. If there\u2019s any update on timing, I\u2019d love to hear it.\n\n')
+      + 'Thanks,\n' + n;
+  return { subject: (second?'Last check-in \u2014 ':'Following up \u2014 ') + t + (c ? ' at ' + c : ''), body };
+}
+function mailtoFor(subject, body, to){
+  return 'mailto:' + (to||'') + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
+function gcalFor(label, whenTs, body){
+  const due = new Date(whenTs); due.setHours(9,0,0,0);
+  const end = new Date(due.getTime() + 30*60000);
+  const fmt = d => d.toISOString().replace(/[-:]|\.\d{3}/g,'');
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(label)
+    + '&dates=' + fmt(due) + '/' + fmt(end)
+    + '&details=' + encodeURIComponent((body||'') + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
+}
+
+// ---- proof to Parker: one tap = email with the record (attach a screenshot)
+function proofEmail(e){
+  const d = ts => ts ? new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+  const body = 'Applied \u2713\n\nJob: ' + (e.title||e.label) + '\nCompany: ' + (e.company||'?')
+    + '\nApplied: ' + d(e.appliedAt || Date.now())
+    + (e.url ? '\nPosting: ' + e.url : '')
+    + (e.score!=null ? '\nMatch score: ' + e.score + '%' : '')
+    + (e.dnv ? '\nVisa income check: ' + e.dnv : '')
+    + '\n\n(Screenshot of the confirmation page attached.)'
+    + '\n\nFull list: ' + API_BASE + '/api/apps?code=' + encodeURIComponent(store.read('rt_code')) + '&view=html';
+  return mailtoFor('\u2705 Applied: ' + (e.title||e.label) + (e.company?' @ '+e.company:''), body, PARKER_EMAIL);
+}
+
+// ---- KV sync: records survive a cleared browser; Parker can verify
+let syncTimer = null;
+function slimApp(e){
+  const r = e.result || {};
+  return { id: e.when, label: e.label, company: e.company||r.company||'', title: e.title||r.job_title||'',
+    url: e.url||r.job_url||'', source: e.source||'pasted', contact: e.contact||'',
+    appliedAt: e.appliedAt||null, outreachAt: e.outreachAt||null, fu1At: e.fu1At||null, fu2At: e.fu2At||null,
+    proofAt: e.proofAt||null, status: e.status||'tailored', startedAt: e.startedAt||null,
+    score: e.score ?? r.match_after ?? null, dnv: e.dnv||'',
+    resume: (r.tailored_resume||'').slice(0,6000), cover_note: (r.cover_note||'').slice(0,2000),
+    updatedAt: e.updatedAt||e.when };
+}
+function scheduleSync(){ clearTimeout(syncTimer); syncTimer = setTimeout(syncApps, 1500); }
+async function syncApps(retry){
+  const code = store.read('rt_code'); if (!code) return;
+  const apps = readHistory().filter(e=>e.appliedAt || e.status!=='tailored').map(slimApp);
+  if (!apps.length) return;
+  try {
+    const r = await fetch(API_BASE + '/api/apps', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ accessCode: code, apps }) });
+    const d = await r.json();
+    if (d && d.saved) { $('syncStatus').textContent = '☁️ saved (' + d.count + ')'; return; }
+    throw new Error(d.message||'sync failed');
+  } catch (err) {
+    if ((retry||0) < 3) setTimeout(()=>syncApps((retry||0)+1), 15000 * ((retry||0)+1));
+    else $('syncStatus').textContent = '⚠️ not saved to cloud yet — will retry next visit';
+  }
+}
+async function pullApps(){
+  const code = store.read('rt_code'); if (!code) return;
+  try {
+    const r = await fetch(API_BASE + '/api/apps?code=' + encodeURIComponent(code));
+    const d = await r.json(); if (!d.apps) return;
+    const h = readHistory(); const byId = new Map(h.map(e=>[e.when,e])); let changed=false;
+    for (const a of d.apps){
+      const local = byId.get(a.id);
+      if (local){
+        if ((a.updatedAt||0) > (local.updatedAt||0)){
+          Object.assign(local, {appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
+            proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, contact:a.contact, updatedAt:a.updatedAt});
+          changed=true;
+        }
+      } else {
+        h.push({ when:a.id, label:a.label, company:a.company, title:a.title, url:a.url, source:a.source,
+          contact:a.contact, appliedAt:a.appliedAt, outreachAt:a.outreachAt, fu1At:a.fu1At, fu2At:a.fu2At,
+          proofAt:a.proofAt, status:a.status, startedAt:a.startedAt, score:a.score, dnv:a.dnv,
+          updatedAt:a.updatedAt, result:{ tailored_resume:a.resume, cover_note:a.cover_note,
+            job_title:a.title, company:a.company, match_after:a.score } });
+        changed=true;
+      }
+    }
+    if (changed){ h.sort((a,b)=>b.when-a.when); store.write('rt_history', JSON.stringify(h.slice(0,50)));
+      renderHistory(); renderDue(); renderDnvClock(); }
+  } catch {}
+}
+
+// ---- applied button on the result card
 function refreshAppliedBtn(){
   const e = currentHistId && entryById(currentHistId);
   const b = $('appliedBtn');
@@ -1261,119 +1425,156 @@ function refreshAppliedBtn(){
     b.textContent = '✓ Applied ' + new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
     b.classList.add('good');
   } else {
-    b.textContent = '✅ I applied — remind me to follow up';
+    b.textContent = '✅ I applied — track it';
     b.classList.remove('good');
   }
-  const idx = readHistory().findIndex(x => x.when === currentHistId);
-  $('resultFu').innerHTML = idx >= 0 ? fuButtons(e, idx) : '';
+  $('resultFu').innerHTML = e.appliedAt ? postApplyRow(e) : '';
 }
-$('resultFu').addEventListener('click', ev => {
-  const fu = ev.target.closest('a[data-fu]');
-  if (fu) setTimeout(()=>markFollowedUp(Number(fu.dataset.fu)), 600);
-});
-$('appliedBtn').onclick = () => {
-  const h = readHistory();
-  const e = h.find(x => x.when === currentHistId); if (!e) return;
-  e.appliedAt = e.appliedAt ? null : Date.now();
-  if (!e.appliedAt) e.followedUpAt = null;
-  writeHistory(h); renderHistory(); renderDue(); refreshAppliedBtn();
-  if (e.appliedAt) {
-    toast('Good luck! 🍀 Reminder set for 5 days');
-    // contextual one-time ask so due-day nudges can also be system notifications
-    try {
-      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-    } catch {}
-  }
-};
-function isDue(e){ return e.appliedAt && !e.followedUpAt && Date.now() - e.appliedAt >= 5*86400000; }
-function historyStatus(e){
-  if (e.followedUpAt) return '✉️ Followed up ' + new Date(e.followedUpAt).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-  if (!e.appliedAt) return 'Not applied yet';
-  if (isDue(e)) return '⏰ Follow-up due — button below';
-  return '✓ Applied · follow up ' + new Date(e.appliedAt + 5*86400000).toLocaleDateString(undefined,{weekday:'short'});
-}
-
-// ---- pre-written follow-up email (human voice; uses the job-specific one when we have it)
-function followUpEmail(e){
-  const r = e.result || {};
-  const t = r.job_title || 'the role', c = r.company || '', n = r.candidate_name || '';
-  const when = new Date(e.appliedAt || e.when).toLocaleDateString(undefined,{month:'long',day:'numeric'});
-  const body = (r.follow_up && r.follow_up.length > 30) ? r.follow_up
-    : 'Hi' + (c ? ' ' + c + ' team' : '') + ',\n\n'
-      + 'I applied for the ' + t + ' position on ' + when + ' and wanted to check in — I’m still really interested. '
-      + 'If there’s any update on timing, I’d love to hear it.\n\n'
-      + 'Happy to share anything else you need.\n\nThanks,\n' + n;
-  return { subject: 'Following up — ' + t + (c ? ' at ' + c : ''), body };
-}
-function mailtoFor(e){
-  const {subject, body} = followUpEmail(e);
-  return 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-}
-function gcalFor(e){
-  const due = new Date((e.appliedAt || Date.now()) + 5*86400000); due.setHours(9,0,0,0);
-  const end = new Date(due.getTime() + 30*60000);
-  const fmt = d => d.toISOString().replace(/[-:]|\.\d{3}/g,'');
-  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    + '&text=' + encodeURIComponent('✉️ Follow up: ' + (e.label || 'job application'))
-    + '&dates=' + fmt(due) + '/' + fmt(end)
-    + '&details=' + encodeURIComponent(followUpEmail(e).body + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
-}
-function fuButtons(e, i){
-  if (!e.appliedAt || e.followedUpAt) return '';
+function postApplyRow(e){
+  const idx = readHistory().findIndex(x => x.when === e.when);
   return '<div class="row" style="margin-top:8px">'+
-    '<a class="btn small good" data-fu="'+i+'" href="'+esc(mailtoFor(e))+'">✉️ Follow-up email</a>'+
-    '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor(e))+'">🔔 Calendar reminder</a>'+
+    '<a class="btn small good" data-proof="'+idx+'" href="'+esc(proofEmail(e))+'">📸 Proof to Parker</a>'+
+    '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Email hiring manager: '+(e.label||''), (e.appliedAt||Date.now())+3*DAY, outreachEmail(e).body))+'">🔔 Day-3 reminder</a>'+
+    '<a class="btn small" target="_blank" rel="noopener" href="'+esc(gcalFor('✉️ Follow up: '+(e.label||''), (e.appliedAt||Date.now())+7*DAY, followUpEmail(e).body))+'">🔔 Day-7 reminder</a>'+
   '</div>';
 }
-function markFollowedUp(i){
-  const h = readHistory(); if (!h[i]) return;
-  h[i].followedUpAt = Date.now();
-  writeHistory(h); renderHistory(); renderDue(); refreshAppliedBtn();
-  toast('Marked as followed up ✓');
-}
+$('resultFu').addEventListener('click', ev => {
+  const p = ev.target.closest('a[data-proof]');
+  if (p) setTimeout(()=>{ updateEntry(currentHistId, e=>{ e.proofAt = Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
+});
+$('appliedBtn').onclick = () => {
+  const e = entryById(currentHistId); if (!e) return;
+  updateEntry(currentHistId, x => {
+    if (x.appliedAt){ x.appliedAt = null; x.status = 'tailored'; }
+    else { x.appliedAt = Date.now(); x.status = 'applied'; }
+  });
+  const now = entryById(currentHistId);
+  if (now && now.appliedAt) {
+    toast('Good luck! 🍀 Reminders set: day 3, 7 and 14');
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
+  }
+};
 
+// ---- rendering
+function statusLabel(e){
+  const d = ts => new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  if (!e.appliedAt) return 'Not applied yet';
+  let out = '✓ Applied ' + d(e.appliedAt);
+  if (e.status && e.status !== 'applied') out += ' · ' + e.status;
+  if (e.proofAt) out += ' · 📸 proof sent';
+  return out;
+}
+function dueRow(item){
+  const {e, i, type} = item;
+  const kind = type==='outreach' ? {label:'✉️ Email the hiring manager', mail: outreachEmail(e), field:'outreachAt'}
+    : type==='fu1' ? {label:'✉️ Follow-up (1 week)', mail: followUpEmail(e), field:'fu1At'}
+    : {label:'✉️ Last follow-up (2 weeks)', mail: followUpEmail(e, true), field:'fu2At'};
+  return '<div class="job-row"><b>'+esc(e.label)+'</b>'+
+    '<span class="meta">'+kind.label+(kind.mail.note?' · '+esc(kind.mail.note):'')+'</span>'+
+    '<div class="row" style="margin-top:8px">'+
+      '<a class="btn small good" data-due="'+e.when+'" data-field="'+kind.field+'" href="'+esc(mailtoFor(kind.mail.subject, kind.mail.body, e.contact||''))+'">✉️ Open the email</a>'+
+      '<button class="btn small" data-skip="'+e.when+'" data-field="'+kind.field+'">Skip</button>'+
+    '</div></div>';
+}
+function renderDue(){
+  const due = dueItems();
+  $('dueCard').style.display = due.length ? 'block' : 'none';
+  $('dueList').innerHTML = due.slice(0,4).map(dueRow).join('');
+}
+function dueClick(ev){
+  const send = ev.target.closest('a[data-due]');
+  if (send){ const id=Number(send.dataset.due), f=send.dataset.field;
+    setTimeout(()=>{ updateEntry(id, e=>{ e[f]=Date.now(); }); toast('Marked as sent ✓'); }, 600); return; }
+  const skip = ev.target.closest('button[data-skip]');
+  if (skip){ const id=Number(skip.dataset.skip), f=skip.dataset.field;
+    updateEntry(id, e=>{ e[f]=Date.now(); e[f+'Skipped']=true; }); toast('Skipped'); return; }
+  const b = ev.target.closest('[data-i]'); if (!b) return;
+  const entry = readHistory()[Number(b.dataset.i)];
+  if (entry && entry.result) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
+}
 function renderHistory(){
   const h = readHistory();
   $('historyCard').style.display = h.length ? 'block' : 'none';
   $('historyList').innerHTML = h.map((e,i)=>{
     const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-    const pct = e.result && e.result.match_after != null ? clamp(e.result.match_after)+'% · ' : '';
+    const pct = e.score != null ? clamp(e.score)+'% · ' : '';
+    const sel = e.appliedAt ? '<select class="sel" data-status="'+i+'" style="margin-top:6px;font-size:.85rem;padding:8px 10px">'+
+      STATUSES.map(s=>'<option'+((e.status||'applied')===s?' selected':'')+'>'+s+'</option>').join('')+'</select>' : '';
+    const proof = e.appliedAt && !e.proofAt ? '<a class="btn small" style="margin-top:6px;text-decoration:none" data-proofh="'+i+'" href="'+esc(proofEmail(e))+'">📸 Proof to Parker</a>' : '';
     return '<div class="job-row">'+
       '<button class="rowmain" data-i="'+i+'">'+
         '<b>'+esc(e.label)+'</b>'+
-        '<span class="meta">'+when+' · '+pct+esc(historyStatus(e))+'</span></button>'+
-      fuButtons(e, i)+
+        '<span class="meta">'+when+' · '+pct+esc(statusLabel(e))+'</span></button>'+
+      '<div class="row">'+sel+proof+'</div>'+
     '</div>';
   }).join('');
 }
-function renderDue(){
+$('historyList').addEventListener('change', ev => {
+  const s = ev.target.closest('select[data-status]'); if (!s) return;
+  const e = readHistory()[Number(s.dataset.status)]; if (!e) return;
+  updateEntry(e.when, x => {
+    x.status = s.value;
+    if ((s.value==='offer'||s.value==='started') && !x.startedAt) x.startedAt = Date.now();
+  });
+  toast('Status: ' + s.value + ' ✓');
+});
+$('historyList').addEventListener('click', ev => {
+  const p = ev.target.closest('a[data-proofh]');
+  if (p){ const e = readHistory()[Number(p.dataset.proofh)];
+    if (e) setTimeout(()=>{ updateEntry(e.when, x=>{ x.proofAt=Date.now(); }); toast('Attach your screenshot before sending 📸'); }, 600);
+    return; }
+  dueClick(ev);
+});
+$('dueList').addEventListener('click', dueClick);
+
+// ---- visa clock: 3 months of employment before she can file (editable checklist)
+const DNV_DOCS_DEFAULT = ['Passport valid 1+ year','Employment contract (3+ months old by filing day)','Employer letter allowing remote work from Spain','Proof employer has existed 1+ year','Payslips / proof of income ≥ €2,849 gross per month','Criminal-record certificate (apostilled)','Private health insurance valid in Spain','Degree certificate OR proof of 3+ years experience'];
+function readDocs(){ try{ const d=JSON.parse(store.read('rt_dnvdocs')||'null'); if(Array.isArray(d)&&d.length) return d }catch{}
+  return DNV_DOCS_DEFAULT.map(t=>({t,done:false})); }
+function writeDocs(d){ store.write('rt_dnvdocs', JSON.stringify(d)); }
+function renderDnvClock(){
+  const e = readHistory().find(x => x.startedAt && ['offer','started'].includes(x.status));
+  $('dnvClockCard').style.display = e ? 'block' : 'none';
+  if (!e) return;
+  const fileDate = new Date(e.startedAt); fileDate.setMonth(fileDate.getMonth()+3);
+  const daysLeft = Math.max(0, Math.ceil((fileDate - Date.now())/DAY));
+  const docs = readDocs();
+  $('dnvClockBody').innerHTML =
+    '<p style="margin:0 0 4px"><b>'+esc(e.label)+'</b> — started '+new Date(e.startedAt).toLocaleDateString(undefined,{month:'long',day:'numeric'})+'</p>'+
+    '<p class="hint">The visa needs 3 months with this employer before you file. Earliest filing day: <b style="color:var(--good)">'+fileDate.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})+'</b>'+(daysLeft?' — '+daysLeft+' days to go. Use them to collect the papers:':' — you can file now! 🎉')+'</p>'+
+    '<ul class="checks">'+docs.map((d,i)=>'<li style="cursor:pointer" data-doc="'+i+'"><span class="tick '+(d.done?'ok':'no')+'">'+(d.done?'✓':'○')+'</span><span>'+esc(d.t)+'</span><button class="btn small" data-deldoc="'+i+'" style="margin-left:auto;flex:none;padding:2px 8px">✕</button></li>').join('')+'</ul>'+
+    '<div class="row"><input type="text" id="newDoc" placeholder="Add a document…" style="flex:1"><button class="btn small" id="addDocBtn">＋ Add</button></div>';
+}
+$('dnvClockBody').addEventListener('click', ev => {
+  const del = ev.target.closest('button[data-deldoc]');
+  if (del){ const d=readDocs(); d.splice(Number(del.dataset.deldoc),1); writeDocs(d); renderDnvClock(); return; }
+  if (ev.target.id==='addDocBtn'){ const v=$('newDoc').value.trim(); if(v){ const d=readDocs(); d.push({t:v,done:false}); writeDocs(d); renderDnvClock(); } return; }
+  const li = ev.target.closest('li[data-doc]');
+  if (li){ const d=readDocs(); const i=Number(li.dataset.doc); d[i].done=!d[i].done; writeDocs(d); renderDnvClock(); }
+});
+
+// ---- CSV export (one tap; also available to Parker at /api/apps?format=csv)
+$('csvBtn').onclick = async () => {
   const h = readHistory();
-  const due = h.map((e,i)=>({e,i})).filter(x=>isDue(x.e));
-  $('dueCard').style.display = due.length ? 'block' : 'none';
-  $('dueList').innerHTML = due.slice(0,3).map(({e,i}) =>
-    '<div class="job-row"><button class="rowmain" data-i="'+i+'"><b>'+esc(e.label)+'</b>'+
-    '<span class="meta">Applied '+new Date(e.appliedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})+'</span></button>'+
-    fuButtons(e, i)+'</div>').join('');
-}
-function historyClick(ev){
-  const fu = ev.target.closest('a[data-fu]');
-  if (fu) { setTimeout(()=>markFollowedUp(Number(fu.dataset.fu)), 600); return; }  // let mailto open first
-  const b = ev.target.closest('[data-i]'); if (!b) return;
-  const entry = readHistory()[Number(b.dataset.i)];
-  if (entry) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
-}
-$('historyList').addEventListener('click', historyClick);
-$('dueList').addEventListener('click', historyClick);
+  const d = ts => ts ? new Date(ts).toISOString().slice(0,10) : '';
+  const cols = ['applied','company','title','status','match','visa fit','source','outreach','follow-up 1','follow-up 2','proof sent','link'];
+  const rows = h.map(e => [d(e.appliedAt), e.company||'', e.title||e.label, e.status||'', e.score??'', e.dnv||'', e.source||'', d(e.outreachAt), d(e.fu1At), d(e.fu2At), d(e.proofAt), e.url||'']
+    .map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(','));
+  await download(new Blob([cols.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}), 'applications.csv');
+};
+
 renderHistory();
 renderDue();
-// nudges when a follow-up is due: toast + system notification when allowed
+renderDnvClock();
+pullApps().then(()=>{ renderDue(); });
+// nudge when something is due: toast + system notification when allowed
 (() => {
-  const due = readHistory().filter(isDue);
+  const due = dueItems();
   if (!due.length) return;
-  setTimeout(()=> toast('⏰ Follow up on: ' + due[0].label.slice(0,40)), 1200);
+  setTimeout(()=> toast('⏰ ' + due.length + ' thing' + (due.length>1?'s':'') + ' to send today — top of the page'), 1200);
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('✉️ Follow-up time', { body: due[0].label + (due.length>1 ? ' (+'+(due.length-1)+' more)' : '') });
+      new Notification('✉️ Due today', { body: due[0].e.label + (due.length>1 ? ' (+'+(due.length-1)+' more)' : '') });
     }
   } catch {}
 })();
