@@ -96,7 +96,20 @@ ul.checks li:last-child{border-bottom:0}
 .tick{flex:none;font-weight:800}
 .tick.ok{color:var(--good)} .tick.no{color:var(--warn)}
 .kw{display:inline-block;background:rgba(124,92,255,.12);color:var(--brand);border-radius:999px;padding:4px 11px;margin:3px 3px 0 0;font-size:.83rem;font-weight:600}
-.miss{background:rgba(224,138,0,.08);border:1.5px solid rgba(224,138,0,.3);border-radius:12px;padding:11px 13px;margin:9px 0;font-size:.9rem}
+.miss{background:rgba(224,138,0,.08);border:1.5px solid rgba(224,138,0,.3);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:.86rem;line-height:1.45}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:.72rem;font-weight:700;vertical-align:1px}
+.pill.ok{background:rgba(31,169,113,.13);color:var(--good)}
+.pill.warn{background:rgba(224,138,0,.13);color:var(--warn)}
+.pill.info{background:rgba(124,92,255,.12);color:var(--brand)}
+/* welcome walkthrough */
+#tut{position:fixed;inset:0;background:rgba(21,19,31,.55);z-index:90;display:none}
+#tutCard{position:fixed;left:12px;right:12px;bottom:18px;background:var(--card);border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.35);padding:20px;z-index:91}
+#tutCard h3{margin:0 0 6px;font-size:1.05rem}
+#tutCard p{margin:0 0 14px;color:var(--muted);font-size:.92rem}
+.tut-target{position:relative;z-index:92;box-shadow:0 0 0 3px var(--brand),0 4px 30px rgba(124,92,255,.45)!important;border-radius:var(--radius)}
+.tut-dots{display:flex;gap:6px;margin-top:12px}
+.tut-dots span{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.tut-dots span.on{background:var(--brand)}
 .miss b{color:var(--warn)}
 .copy-note{background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:14px;font-size:.95rem;white-space:pre-wrap}
 details.adv{margin-top:12px}
@@ -179,6 +192,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <option value="Albanian">Always Albanian</option>
 </select></label>
 </div>
+<details class="adv" style="margin-top:14px"><summary>⚙️ More settings — stored answers, job titles, your writing voice</summary>
 <p class="hint" style="margin:14px 0 4px">✅ Stored answers — dropped straight into screening answers</p>
 <div class="row" style="align-items:flex-end">
 <label style="flex:1;min-width:130px"><span class="muted">“Are you authorized to work…?”</span>
@@ -196,6 +210,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <input type="text" id="setSynonyms" placeholder="support, success, helpdesk, customer care…">
 <p class="hint" style="margin:14px 0 4px">🗣️ How you write (one time, optional)</p>
 <textarea id="voiceText" style="min-height:80px" placeholder="Paste 3–5 sentences you really wrote — a normal email is perfect. Your letters will be written in this voice instead of AI-speak."></textarea>
+</details>
 </details>
 </section>
 
@@ -334,8 +349,9 @@ stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
 <h2>📈 Your numbers</h2>
 <p class="hint">Real data from your own applications, next to what the research says is normal.</p>
 <div id="paceGuard"></div>
-<div id="statsBody"></div>
+<div id="statsTop"></div>
 <div id="whatToChange"></div>
+<details class="adv"><summary>📊 All the charts</summary><div id="statsBody" style="margin-top:10px"></div></details>
 <details class="adv"><summary>Where the benchmarks come from</summary>
 <p class="muted" style="margin-top:8px">
 Tailored 4.23% vs untailored 2.07% interview rate; 9.25% at 11–20 applications/mo vs 2.58% at 100+; median 108 days search-to-offer — Huntr, Q1 2026 (139,927 applications).
@@ -348,6 +364,13 @@ Full list with links is in the project README, checked 9 Sep 2026.
 
 <footer>Made with ❤️ · Your resume leaves this phone only to be tailored, and your application list syncs privately with your access code · <span id="verTag"></span></footer>
 </div>
+<div id="tut"></div>
+<div id="tutCard" style="display:none">
+<h3 id="tutTitle"></h3>
+<p id="tutText"></p>
+<button class="primary" id="tutNext" style="margin-top:0;padding:13px"></button>
+<div class="tut-dots" id="tutDots"></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -359,7 +382,6 @@ read(key){ try{ return localStorage.getItem(key)||'' }catch{ return '' } },
 write(key,v){ try{ localStorage.setItem(key,v) }catch{} },
 };
 
-// ---------- base resumes (up to 5; rt_resume mirrors the active one) ----------
 function readBases(){
 try { const b = JSON.parse(store.read('rt_bases')||'null'); if (Array.isArray(b) && b.length) return b; } catch {}
 const legacy = store.read('rt_resume');
@@ -417,7 +439,6 @@ hideErr(); toast('Resume saved ✓'); refreshResumeUI();
 };
 $('editResumeBtn').onclick = () => { $('resumeCollapsed').style.display='none'; $('resumeOpen').style.display='block'; };
 refreshResumeUI();
-// which base fits this job best? cheap keyword overlap, no API call
 function suggestBase(jobText){
 const bases = readBases(); if (bases.length < 2) return null;
 const jt = new Set((jobText.toLowerCase().match(/[a-zà-ÿ]{4,}/g)||[]));
@@ -433,14 +454,12 @@ return { index: best, name: bases[best].name || ('Resume '+(best+1)) };
 return null;
 }
 $('accessCode').value = store.read('rt_code');
-// "your situation" — saved, pre-filled for the Kosovo → Spain plan
 const DEFAULT_PROFILE = 'Based in Kosovo (CET timezone — same as Spain and central Europe). Planning to move to Spain on the digital nomad visa, so the job must be fully remote for a non-Spanish company that allows working from Europe / anywhere, ideally paying at least €2,850/month gross (the visa’s income requirement). Fluent English; add your other languages here. Looking for remote customer service / support roles.';
 $('profileText').value = store.read('rt_profile') || DEFAULT_PROFILE;
 $('profileText').addEventListener('input', () => {
 clearTimeout($('profileText')._t);
 $('profileText')._t = setTimeout(()=> store.write('rt_profile', $('profileText').value.trim()), 800);
 });
-// per-request settings (Phase 2c will grow this into a full Profile screen)
 function readSettings(){
 try { return JSON.parse(store.read('rt_settings')||'{}') } catch { return {} }
 }
@@ -463,7 +482,6 @@ avail: $('setAvail').value.trim(),
 titleSynonyms: $('setSynonyms').value.trim() || DEFAULT_SYNONYMS,
 };
 }
-// everything she is + her stored answers, sent with each request — nothing hard-coded server-side
 function composeProfile(){
 const s = currentSettings();
 const parts = [$('profileText').value.trim()];
@@ -497,7 +515,6 @@ $('voiceText')._t = setTimeout(()=> store.write('rt_voice', $('voiceText').value
 });
 })();
 
-// ---------- file upload (.txt/.docx/.pdf) ----------
 $('resumeFile').addEventListener('change', async e => {
 const f = e.target.files[0]; if (!f) return;
 $('fileStatus').textContent = 'Reading ' + f.name + '…';
@@ -542,7 +559,6 @@ document.head.appendChild(s);
 });
 }
 
-// private mode / blocked storage: nothing saves locally — tell her once, cloud sync still works
 (() => {
 try { localStorage.setItem('rt_probe','1'); localStorage.removeItem('rt_probe'); }
 catch {
@@ -550,14 +566,11 @@ setTimeout(()=> showErr('Heads up: this browser is blocking saved data (private 
 }
 })();
 
-// ---------- health check: show code box only if needed AND not saved yet ----------
 fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
-// ---------- auto-update: her phone (especially the home-screen app) caches this
-// page hard; when a new version ships, reload once automatically ----------
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 document.getElementById('verTag').textContent = APP_VERSION;
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
 if (v && v.v && v.v !== APP_VERSION && store.read('rt_reloaded') !== v.v) {
@@ -567,7 +580,6 @@ setTimeout(()=> location.replace(location.pathname + '?u=' + encodeURIComponent(
 }
 }).catch(()=>{});
 
-// ---------- tailor flow ----------
 const LOADING_LINES = [
 'Reading the job…','Checking for deal-breakers…','Matching your experience…',
 'Rewriting your bullets…','Checking honesty — nothing made up…','Writing your cover letter…',
@@ -674,8 +686,6 @@ result._fromFeed = !!window._jobFromFeed; window._jobFromFeed = false;
 $('jobInput').value = ''; store.write('rt_jobdraft', '');   // ready for the next job
 $('jobInput').placeholder = 'Paste the job link (or the whole job description) here';
 render(result);   // show it immediately — speed first
-// anti-slop runs in the background: if the draft was rough, a polished
-// version (or a visible warning) replaces it without making her wait
 if (!result._salvage) {
 (async () => {
 try {
@@ -700,7 +710,6 @@ showErr(err && err.name === 'AbortError'
 clearTimeout(killer);
 }
 }
-// One smart button: uses the box if filled, otherwise grabs the copied link.
 $('tailorBtn').onclick = async () => {
 if (!$('jobInput').value.trim()) {
 try {
@@ -712,26 +721,22 @@ if (!$('jobInput').value.trim()) { $('jobInput').focus(); return showErr('Tap a 
 doTailor();
 };
 
-// what she types in the job box survives a killed tab
 $('jobInput').value = $('jobInput').value || store.read('rt_jobdraft');
 $('jobInput').addEventListener('input', () => {
 clearTimeout($('jobInput')._t);
 $('jobInput')._t = setTimeout(()=> store.write('rt_jobdraft', $('jobInput').value), 500);
 });
 
-// A pasted link starts tailoring by itself.
 $('jobInput').addEventListener('paste', () => {
 setTimeout(() => { if (looksLikeUrl($('jobInput').value)) doTailor(); }, 150);
 });
 
-// Resume auto-saves while typing — the Save button is just reassurance.
 let saveTimer = null;
 $('resumeText').addEventListener('input', () => {
 clearTimeout(saveTimer);
 saveTimer = setTimeout(saveActiveBase, 800);
 });
 
-// ---------- streaming: type the resume live while Claude writes ----------
 function startStreamView(){
 $('results').style.display = 'block';
 $('resultTitle').textContent = '🎯 Writing your resume…';
@@ -768,7 +773,6 @@ if (now - lastPaint > 120) { $('outResume').textContent = rm[1]; lastPaint = now
 }
 } catch { /* dropped mid-stream — salvage whatever was written below */ }
 
-// Full success: resume + data block.
 const m = /===RESUME===\s*([\s\S]*?)\s*===DATA===\s*([\s\S]*)/.exec(full);
 if (m) {
 let tail = m[2].trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -780,15 +784,12 @@ if (s >= 0 && e > s) { try { parsed = JSON.parse(tail.slice(s, e + 1)); } catch 
 if (parsed) { parsed.tailored_resume = m[1].trim(); return parsed; }
 if (m[1].trim().length > 200) return { _salvage: true, tailored_resume: m[1].trim() };
 }
-// Resume streamed but the data block never finished — keep the resume.
 const rOnly = /===RESUME===\s*([\s\S]*)/.exec(full);
 const resumeText = (rOnly ? rOnly[1] : full).replace(/===DATA===[\s\S]*$/, '').trim();
 if (resumeText.length > 200) return { _salvage: true, tailored_resume: resumeText };
 return null;
 }
 
-// mandatory Apply kit fallback: contact pulled from the saved resume text,
-// answers assembled from her real materials (cover note, situation) only.
 function buildFallbackKit(r){
 const res = store.read('rt_resume') || '';
 const prof = $('profileText').value || '';
@@ -797,7 +798,6 @@ const phone = (res.match(/(?:\+|00)?[\d(][\d\s().-]{7,}\d/) || [''])[0].trim();
 const name = r.candidate_name || (res.split('\n').map(s=>s.trim()).find(s=>s && !s.includes('@') && !/\d{3}/.test(s)) || '');
 const linkedin = (res.match(/(?:linkedin\.com\/in\/|linkedin\.com\/)[^\s|,]+/i) || [''])[0];
 const location = (prof.match(/Based in ([^.(]+)/i) || [,''])[1].trim();
-// honesty: nothing invented — only what her own materials state, else leave it to her
 const dnvGoal = (readSettings().dnvMonthly || (/€\s?2,?8\d\d/.test(prof) ? 2849 : 0));
 const salaryGoal = dnvGoal
 ? 'I’m targeting at least €' + dnvGoal.toLocaleString('en') + ' gross monthly, and flexible for the right role.'
@@ -811,7 +811,6 @@ r.cover_note ? { label: 'Why do you want to work here?', text: r.cover_note } : 
 return { contact: { name, email, phone, location, linkedin }, answers };
 }
 
-// ---------- anti-slop: check → regenerate once → visible warning ----------
 async function slopScore(result, tb){
 const r = await fetch(API_BASE + '/api/slop', {
 method:'POST', headers:{'content-type':'application/json'},
@@ -824,7 +823,6 @@ async function antiSlop(result, tb){
 let s = await slopScore(result, tb);
 const bad = x => (x.flags||[]).length > 0 || (x.score != null && x.score > 4);
 if (!bad(s)) return result;
-// one regenerate with the complaints fed back (background — she already has the draft)
 const complaints = (s.flags||[]).map(f=>f.where+': '+f.reason);
 if (s.score != null && s.score > 4) complaints.push('overall it reads AI-generated ('+s.score+'/10) — vary sentence lengths, cut template phrasing, be concrete');
 const r2 = await fetch(API_BASE + '/api/tailor', {
@@ -843,7 +841,6 @@ result._slop = s;                  // regenerate failed → keep first draft, wa
 return result;
 }
 
-// ---------- raw word-level diff + one-tap vetoes ----------
 function lcsOps(a, b){               // generic LCS over two arrays → op list
 const n=a.length, m=b.length, dp=[];
 for (let i=n; i>=0; i--){ dp[i]=new Array(m+1).fill(0); }
@@ -865,7 +862,6 @@ return ops.map(o => o.t==='=' ? esc(o.a)
 : o.t==='-' ? '<del style="color:var(--bad);opacity:.7">'+esc(o.a)+'</del>'
 : '<mark style="background:rgba(31,169,113,.2);color:inherit;border-radius:3px">'+esc(o.b)+'</mark>').join(' ');
 }
-// pair up removed/added lines into changes; returns [{t:'='|'-'|'+'|'~', a?, b?}]
 function resumeDiff(before, after){
 const ops = lcsOps(before.split('\n'), after.split('\n'));
 const out=[];
@@ -917,7 +913,6 @@ renderDiff();
 toast(diffVetoes.has(i) ? 'Put back your original ✓' : 'Using the new version ✓');
 });
 
-// ---------- render results ----------
 let lastResume = '', lastNote = '', lastJob = '', lastName = '', lastCompany = '', lastLetter = '', lastFollowUp = '', lastTitle = '';
 function render(r, fromHistory){
 lastResume = r.tailored_resume || '';
@@ -929,14 +924,11 @@ lastLetter = r.cover_letter || '';
 lastFollowUp = r.follow_up || '';
 lastJob = [r.job_title, r.company].filter(Boolean).join(' — ');
 if (!fromHistory) saveHistory(r);
-// raw diff vs the resume she saved, with per-job vetoes remembered
 const original = store.read('rt_resume');
 diffOps = (original && lastResume && !r._salvage) ? resumeDiff(original, lastResume) : [];
 const histEntry = currentHistId && entryById(currentHistId);
 diffVetoes = new Set((histEntry && histEntry.vetoes) || []);
 if (diffVetoes.size) lastResume = effectiveResume();
-// pre-build the Word file in the background so the download tap is instant
-// (also keeps iOS's share sheet inside the tap-gesture window)
 setTimeout(()=> buildDocxBlob(lastResume).catch(()=>{}), 1200);
 $('resultTitle').textContent = '🎯 Tailored for this job';
 const ojb = $('openJobBtn');
@@ -963,7 +955,6 @@ arc.style.stroke = salvage ? 'var(--line)' : after >= 75 ? 'var(--good)' : after
 
 $('outResume').textContent = lastResume;
 
-// knockout pre-check — hard gates first, before she reads anything else
 const ko = r.knockout || [];
 const koFails = ko.filter(k=>k.verdict==='FAIL'), koAsks = ko.filter(k=>k.verdict==='ASK');
 $('knockoutBanner').style.display = (koFails.length || koAsks.length) ? 'block' : 'none';
@@ -975,7 +966,6 @@ $('knockoutBanner').innerHTML =
 (koFails.length && koAsks.length ? '<br>' : '') +
 (koAsks.length ? '<b>🟡 They’ll ask — check you can answer yes:</b><br>' + koAsks.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '');
 }
-// fit verdict — “low odds” beats a quietly weak tailor
 const fit = r.fit || {};
 $('fitBanner').style.display = (fit.proceed === false) ? 'block' : 'none';
 if (fit.proceed === false) {
@@ -983,12 +973,10 @@ $('fitBanner').style.borderColor = 'rgba(224,138,0,.4)';
 $('fitBanner').innerHTML = '<b>⚖️ Low odds — your time is probably better spent elsewhere.</b><br>' +
 esc(fit.reason || '') + (fit.met_pct != null ? ' <span class="muted">(you meet ~' + clamp(fit.met_pct) + '% of what they ask for)</span>' : '');
 }
-// why this score + the one change that moves it most
 const why = r.why_score || {};
 $('outWhy').innerHTML = (why.drivers||[]).length || why.biggest_boost
 ? (why.drivers||[]).map(esc).join(' · ') + (why.biggest_boost ? '<br><b style="color:var(--ink)">Biggest boost:</b> ' + esc(why.biggest_boost) : '')
 : '';
-// digital-nomad-visa fit
 const dnv = r.dnv_fit || {};
 $('dnvBanner').style.display = dnv.status && dnv.note ? 'block' : 'none';
 if (dnv.status && dnv.note) {
@@ -1000,12 +988,10 @@ $('dnvBanner').innerHTML = '<b>' + ic + ' Visa income check: ' + esc(dnv.status)
 '<br>' + esc(dnv.note);
 }
 renderDiff();
-// a different base resume matches this job better → one-tap switch & redo
 const bs = !fromHistory && window._baseSuggestion;
 $('baseSuggest').style.display = bs ? 'block' : 'none';
 if (bs) $('baseSuggest').innerHTML = '<b>📄 Your “' + esc(bs.name) + '” resume looks like a better fit for this job.</b> ' +
 '<button class="btn small" id="baseSwitchBtn" style="margin-top:6px">Use it and tailor again</button>';
-// anti-slop warning — only when a regenerate still didn't fix it
 const slop = r._slop;
 $('slopBanner').style.display = slop ? 'block' : 'none';
 if (slop) {
@@ -1014,7 +1000,6 @@ $('slopBanner').innerHTML = '<b>🤖 Heads up — parts of this still sound AI-w
 (slop.score != null ? ' (' + esc(slop.score) + '/10)' : '') + '.</b> Reword the flagged bits in your own voice before sending:<br>' +
 (slop.flags||[]).slice(0,6).map(f=>'• '+esc(f.where)+': '+esc(f.reason)).join('<br>');
 }
-// questions she should answer to make the result stronger
 $('outAsk').innerHTML = (r.questions_for_her||[]).length
 ? '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>✍️ Answer these and tailor again — it gets stronger:</b><br>' +
 r.questions_for_her.map(q=>'• '+esc(q)).join('<br>') + '</div>'
@@ -1047,14 +1032,11 @@ $('outNote').textContent = lastNote;
 $('outLetter').textContent = lastLetter || '(This one didn’t come with a cover letter — tap Tailor again if you need one.)';
 $('outFollowUp').textContent = lastFollowUp || '';
 
-// The kit is mandatory: when a result arrives without one (old entries,
-// salvaged streams), build it from her real saved data — never invented.
 const kit = (r.apply_kit && (r.apply_kit.answers || []).length) ? r.apply_kit : buildFallbackKit(r);
 const kc = kit.contact || {};
 const contactRows = [['Name', kc.name], ['Email', kc.email], ['Phone', kc.phone], ['Location', kc.location], ['LinkedIn', kc.linkedin]]
 .filter(x => x[1]);
 const answerRows = (kit.answers || []).filter(a => a && a.text).map(a => [a.label, a.text]);
-// honest paste-ready visa answers, straight from her situation
 const lv = r.location_visa || {};
 const visaRows = [
 lv.authorized_answer ? ['Are you authorized to work here?', lv.authorized_answer] : null,
@@ -1111,14 +1093,12 @@ $('jobInput').value = window._lastJobText || '';
 if ($('jobInput').value) doTailor();
 });
 
-// tabs
 $('tabs').addEventListener('click', e => {
 const b = e.target.closest('.tab'); if (!b) return;
 document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t===b));
 document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===b.dataset.pane));
 });
 
-// copy + downloads
 async function copy(text, label){
 try { await navigator.clipboard.writeText(text); toast(label+' copied ✓'); }
 catch {
@@ -1135,7 +1115,6 @@ function activateTab(paneId){
 document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pane===paneId));
 document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id===paneId));
 }
-// resume grabbed → the form answers are automatically the next step
 function showKitNext(){
 setTimeout(()=>{ activateTab('paneKit'); toast('Next: the form answers — Copy each ⚡'); }, 900);
 }
@@ -1144,13 +1123,10 @@ $('copyNoteBtn').onclick = ()=> copy(lastNote, 'Note');
 $('copyLetterBtn').onclick = ()=> copy(lastLetter, 'Cover letter');
 $('copyFollowUpBtn').onclick = ()=> copy(lastFollowUp, 'Follow-up');
 function fileName(ext){
-// Recruiter-standard: Firstname-Lastname-Role.ext (+ company so her files stay sorted)
 const clean = s => String(s||'').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'');
 const parts = [clean(lastName), clean(lastTitle).slice(0,40) || 'Resume', clean(lastCompany).slice(0,30)].filter(Boolean);
 return (parts.join('-') || 'Tailored-Resume') + ext;
 }
-// Real .docx (parses cleanly in every ATS), pre-built in the background after
-// each tailor so the tap is instant; Word-HTML fallback if the library fails.
 const docxCache = { text: '', blob: null };
 async function buildDocxBlob(text){
 if (docxCache.text === text && docxCache.blob) return docxCache.blob;
@@ -1193,14 +1169,12 @@ await download(new Blob(['﻿', html],{type:'application/msword'}), fileName('.d
 $('dlWordBtn').textContent = old;
 showKitNext();
 };
-// ---------- jobs feed: found for her, top 5 today, one tap tailors ----------
 function timeAgo(ts){
 if (!isFinite(ts) || !ts) return 'new';
 const h = Math.max(1, Math.round((Date.now() - ts) / 3600000));
 if (h < 48) return 'posted ' + h + 'h ago';
 return 'posted ' + Math.round(h/24) + ' days ago';
 }
-// salary string → rough €/month, for the visa chip (always labeled ≈ estimate)
 function salaryMonthly(sal){
 if (!sal) return 0;
 const c=String(sal).replace(/,/g,'');
@@ -1212,7 +1186,6 @@ return Math.round(n / 12);
 }
 let feedAll = [], feedExpanded = false, feedMeta = {};
 function seenUrls(){ try{ return new Set(JSON.parse(store.read('rt_seen')||'[]')) }catch{ return new Set() } }
-// fit = server landability + overlap between the job title and her resume/synonyms
 function fitScore(j){
 const resume = (store.read('rt_resume')||'').toLowerCase();
 const syn = currentSettings().titleSynonyms.toLowerCase();
@@ -1232,14 +1205,14 @@ const where = /anywhere|worldwide/i.test(j.location) ? 'Work from anywhere' : es
 const isNew = !seen.has(j.url);
 const fresh = j.ts && (Date.now()-j.ts) < 96*3600000;
 const mo = salaryMonthly(j.salary);
-const dnvChip = mo ? (mo >= dnvNeed
-? ' · <span style="color:var(--good)">≈€'+mo.toLocaleString('en')+'/mo — visa ✓</span>'
-: ' · <span style="color:var(--warn)">≈€'+mo.toLocaleString('en')+'/mo — under visa need</span>') : '';
+
+const pills = (fresh?'<span class="pill info" title="'+esc(j.source||'')+'">⚡ apply now</span> ':'')+
+(j.kosovoOk?'<span class="pill ok">🌍 Kosovo-OK</span> ':'')+
+(mo ? (mo >= dnvNeed ? '<span class="pill ok">≈€'+mo.toLocaleString('en')+'/mo · visa ✓</span>' : '<span class="pill warn">≈€'+mo.toLocaleString('en')+'/mo · under visa</span>') : '');
 return '<button class="job-row" data-url="'+esc(j.url)+'">'+
-'<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+
-(fresh?' <span class="kw" style="font-size:.72rem;padding:2px 8px" title="'+esc(j.source||'')+'">⚡ apply now</span>':'')+'</b>'+
-'<span class="meta"><b style="color:var(--ink)">'+esc(timeAgo(j.ts))+'</b> · '+esc(j.company)+' · '+where+
-(j.kosovoOk?' · 🌍 Kosovo-OK':'')+(j.salary ? ' · '+esc(j.salary) : '')+dnvChip+'</span>'+
+'<b>'+(isNew?'<span style="color:var(--brand)">●</span> ':'')+esc(j.title)+'</b>'+
+'<span class="meta"><b style="color:var(--ink)">'+esc(timeAgo(j.ts))+'</b> · '+esc(j.company)+' · '+where+(j.salary ? ' · '+esc(j.salary) : '')+'</span>'+
+(pills?'<span class="meta" style="margin-top:3px">'+pills+'</span>':'')+
 '</button>';
 }).join('');
 }
@@ -1297,7 +1270,6 @@ if (!feedExpanded && feedAll.length > 5) { feedExpanded = true; paintFeed(); }
 else loadFeed();
 };
 loadFeed();
-// Telegram digest deep link: ?job=<url> arrives pre-loaded and starts tailoring
 (() => {
 try {
 const u = new URLSearchParams(location.search).get('job');
@@ -1309,14 +1281,12 @@ if ((store.read('rt_resume')||'').length > 100) setTimeout(doTailor, 600);
 } catch {}
 })();
 
-// ---------- applications: tracking, reminders, outreach, sync, proof ----------
 const PARKER_EMAIL = 'parker.black26@icloud.com';   // where "proof I applied" goes
 const STATUSES = ['applied','replied','interview','offer','started','rejected','no response'];
 let currentHistId = null;
 function readHistory(){ try{ return JSON.parse(store.read('rt_history')||'[]') }catch{ return [] } }
 function writeHistory(h){ store.write('rt_history', JSON.stringify(h.slice(0, 50))); scheduleSync(); }
 function touch(e){ e.updatedAt = Date.now(); }
-// migrate old entries (followedUpAt → fu1At, add status)
 (() => {
 const h = readHistory(); let changed=false;
 for (const e of h){
@@ -1346,7 +1316,6 @@ fn(e); touch(e); writeHistory(h);
 renderHistory(); renderDue(); refreshAppliedBtn(); renderDnvClock(); renderStats();
 }
 
-// ---- due engine: outreach day 3, follow-up day 7 and 14, then archive
 const DAY = 86400000;
 function dueItems(){
 const now = Date.now(); const out = [];
@@ -1367,7 +1336,6 @@ if (autoArchived) store.write('rt_history', JSON.stringify(h));
 return out;
 }
 
-// ---- pre-written emails (honest, short; she always taps send herself)
 function outreachEmail(e){
 const t = e.title || (e.result&&e.result.job_title) || 'the role';
 const c = e.company || (e.result&&e.result.company) || '';
@@ -1405,7 +1373,6 @@ return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
 + '&details=' + encodeURIComponent((body||'') + '\n\nOpen the tool: https://vlues.github.io/resume-tailor/');
 }
 
-// ---- proof to Parker: one tap = email with the record (attach a screenshot)
 function proofEmail(e){
 const d = ts => ts ? new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
 const body = 'Applied \u2713\n\nJob: ' + (e.title||e.label) + '\nCompany: ' + (e.company||'?')
@@ -1418,7 +1385,6 @@ const body = 'Applied \u2713\n\nJob: ' + (e.title||e.label) + '\nCompany: ' + (e
 return mailtoFor('\u2705 Applied: ' + (e.title||e.label) + (e.company?' @ '+e.company:''), body, PARKER_EMAIL);
 }
 
-// ---- KV sync: records survive a cleared browser; Parker can verify
 let syncTimer = null;
 function slimApp(e){
 const r = e.result || {};
@@ -1476,7 +1442,6 @@ renderHistory(); renderDue(); renderDnvClock(); }
 } catch {}
 }
 
-// ---- applied button on the result card
 function refreshAppliedBtn(){
 const e = currentHistId && entryById(currentHistId);
 const b = $('appliedBtn');
@@ -1516,7 +1481,6 @@ try { if ('Notification' in window && Notification.permission === 'default') Not
 }
 };
 
-// ---- rendering
 function statusLabel(e){
 const d = ts => new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
 if (!e.appliedAt) return 'Not applied yet';
@@ -1553,10 +1517,12 @@ const b = ev.target.closest('[data-i]'); if (!b) return;
 const entry = readHistory()[Number(b.dataset.i)];
 if (entry && entry.result) { currentHistId = entry.when; render(entry.result, true); refreshAppliedBtn(); }
 }
+let histExpanded = false;
 function renderHistory(){
 const h = readHistory();
 $('historyCard').style.display = h.length ? 'block' : 'none';
-$('historyList').innerHTML = h.map((e,i)=>{
+const shown = histExpanded ? h : h.slice(0,5);
+$('historyList').innerHTML = shown.map((e,i)=>{
 const when = new Date(e.when).toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const pct = e.score != null ? clamp(e.score)+'% · ' : '';
 const sel = e.appliedAt ? '<select class="sel" data-status="'+i+'" style="margin-top:6px;font-size:.85rem;padding:8px 10px">'+
@@ -1568,7 +1534,9 @@ return '<div class="job-row">'+
 '<span class="meta">'+when+' · '+pct+esc(statusLabel(e))+'</span></button>'+
 '<div class="row">'+sel+proof+'</div>'+
 '</div>';
-}).join('');
+}).join('') + (h.length>5 && !histExpanded ? '<button class="btn small" id="histMoreBtn" style="margin-top:8px">Show all '+h.length+'</button>' : '');
+const mb = $('histMoreBtn') || document.getElementById('histMoreBtn');
+if (mb) mb.onclick = () => { histExpanded = true; renderHistory(); };
 }
 $('historyList').addEventListener('change', ev => {
 const s = ev.target.closest('select[data-status]'); if (!s) return;
@@ -1590,7 +1558,6 @@ dueClick(ev);
 });
 $('dueList').addEventListener('click', dueClick);
 
-// ---- visa clock: 3 months of employment before she can file (editable checklist)
 const DNV_DOCS_DEFAULT = ['Passport valid 1+ year','Employment contract (3+ months old by filing day)','Employer letter allowing remote work from Spain','Proof employer has existed 1+ year','Payslips / proof of income ≥ €2,849 gross per month','Criminal-record certificate (apostilled)','Private health insurance valid in Spain','Degree certificate OR proof of 3+ years experience'];
 function readDocs(){ try{ const d=JSON.parse(store.read('rt_dnvdocs')||'null'); if(Array.isArray(d)&&d.length) return d }catch{}
 return DNV_DOCS_DEFAULT.map(t=>({t,done:false})); }
@@ -1616,7 +1583,6 @@ const li = ev.target.closest('li[data-doc]');
 if (li){ const d=readDocs(); const i=Number(li.dataset.doc); d[i].done=!d[i].done; writeDocs(d); renderDnvClock(); }
 });
 
-// ---- CSV export (one tap; also available to Parker at /api/apps?format=csv)
 $('csvBtn').onclick = async () => {
 const h = readHistory();
 const d = ts => ts ? new Date(ts).toISOString().slice(0,10) : '';
@@ -1626,7 +1592,6 @@ const rows = h.map(e => [d(e.appliedAt), e.company||'', e.title||e.label, e.stat
 await download(new Blob([cols.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}), 'applications.csv');
 };
 
-// ---------- stats: her real numbers vs the research ----------
 function statsData(){
 const now = Date.now();
 const apps = readHistory().filter(e => e.appliedAt);
@@ -1669,16 +1634,13 @@ const d = statsData();
 $('statsCard').style.display = d.apps.length ? 'block' : 'none';
 if (!d.apps.length) return;
 let h = '';
-// headline numbers
-h += '<div class="row" style="gap:14px;margin-bottom:10px">'+
+$('statsTop').innerHTML = '<div class="row" style="gap:14px;margin-bottom:10px">'+
 [['Applied', d.apps.length], ['Replies', d.replied.length], ['Interviews', d.interviewed.length]]
 .map(x=>'<div style="flex:1;text-align:center;background:var(--bg);border-radius:12px;padding:10px"><b style="font-size:1.3rem">'+x[1]+'</b><br><span class="muted" style="font-size:.8rem">'+x[0]+'</span></div>').join('')+'</div>';
-// applications per week
 const maxW = Math.max(1, ...d.weekly);
 h += '<p class="hint" style="margin:0 0 4px">Applications per week (last 8):</p>';
 h += d.weekly.map((n,i)=> bar(i===7?'this week':(7-i)+'w ago', n, maxW, n+' job'+(n===1?'':'s'))).join('');
 h += takeaway(d.thisWeek>=3 && d.thisWeek<=20 ? 'Good pace — steady beats bursts.' : d.thisWeek===0 ? 'Nothing sent this week yet — one tailored application today restarts the streak.' : d.thisWeek>20 ? 'That’s a lot — see the pace note above.' : 'A few more this week wouldn’t hurt — 11–20/month is the sweet spot (9.25% interview rate).');
-// reply + interview rate vs benchmarks
 h += '<p class="hint" style="margin:10px 0 4px">Your rates vs the research:</p>';
 h += bar('Your interviews', d.interviewRate||0, 12, (d.interviewRate??'–')+'%');
 h += bar('Tailored (norm)', 4.23, 12, '4.23%');
@@ -1691,7 +1653,6 @@ if (d.median != null) {
 h += '<p class="hint" style="margin:10px 0 4px">Replies take:</p>' + bar('Your median', d.median, 42, d.median+' days') + bar('Employer fill', 42, 42, '≈42 days');
 h += takeaway('Employers typically take ~6 weeks to fill a role — silence for 2–3 weeks is normal, not a no.');
 }
-// reply-rate buckets
 for (const [name, rows] of Object.entries(d.buckets)){
 const used = rows.filter(([,v])=>v.n>0);
 if (used.length < 2) continue;
@@ -1702,11 +1663,9 @@ const best = used.slice().sort((a,b)=>(b[1].pct||0)-(a[1].pct||0))[0];
 h += takeaway((small?'Small sample so far — ':'')+'best: '+best[0]+' at '+(best[1].pct||0)+'%.');
 }
 $('statsBody').innerHTML = h;
-// pace guard
 $('paceGuard').innerHTML = d.thisWeek > 20
 ? '<div class="miss" style="border-color:rgba(224,138,0,.4)"><b>🐢 Slow down — quality wins.</b> You’ve sent '+d.thisWeek+' this week. The data: 11–20 applications/month interview at 9.25% each; 100+ drops to 2.58% (Huntr Q1 2026). Spend the next hour emailing hiring managers for jobs you already applied to instead.</div>'
 : '';
-// weekly "what to change" — one concrete move, with the stat that justifies it
 const outreachRate = d.apps.length ? d.apps.filter(e=>e.outreachAt&&!e.outreachAtSkipped).length/d.apps.length : 0;
 let change;
 if (d.thisWeek===0) change = 'Apply to one job today. Tailored applications interview at 4.23% each — but only the ones you actually send.';
@@ -1724,7 +1683,6 @@ renderDue();
 renderDnvClock();
 renderStats();
 pullApps().then(()=>{ renderDue(); renderStats(); });
-// nudge when something is due: toast + system notification when allowed
 (() => {
 const due = dueItems();
 if (!due.length) return;
@@ -1736,9 +1694,45 @@ new Notification('✉️ Due today', { body: due[0].e.label + (due.length>1 ? ' 
 } catch {}
 })();
 
+const TUT_STEPS = [
+{t:'Welcome! 👋', x:'This tool rewrites your resume for each job — honestly, using only what you really did — and helps you apply, follow up, and track everything. Two minutes to show you around.', b:'Show me'},
+{t:'Step 1 — your resume, once', x:'Paste your resume here (or upload the file). It stays saved on this phone, so you only do this one time. You can keep up to 5 versions later.', el:'resumeCard', b:'Next'},
+{t:'Your profile', x:'Tap “Profile” inside step 1 and check it once: your country, languages, and your standard answers. Every job check uses this — it’s what keeps everything honest and correct for you.', el:'resumeCard', b:'Next'},
+{t:'Step 2 — pick a job', x:'Fresh remote jobs picked for you, best first. ⚡ means apply today. 🌍 means it works from Kosovo. Tap any job and the rewrite starts by itself — or paste any job link in the box.', el:'feedList', b:'Next'},
+{t:'What you get', x:'A rewritten resume (watch it type!), a match score, any deal-breakers up top, ready-to-copy form answers, a cover letter, and interview answers. Copy, download as Word, done.', b:'Next'},
+{t:'After you apply', x:'Tap “✅ I applied” on the result. The tool then reminds you at day 3, 7 and 14 with emails already written — and the 📸 Proof button sends Parker a note that you applied. That’s it. Good luck! 🍀', b:'Let’s go ✂️'},
+];
+let tutStep = 0, tutTarget = null;
+function tutShow(i){
+tutStep = i;
+const st = TUT_STEPS[i];
+if (tutTarget) tutTarget.classList.remove('tut-target');
+tutTarget = st.el ? $(st.el) : null;
+if (tutTarget) { tutTarget.classList.add('tut-target'); try{ tutTarget.scrollIntoView({block:'center'}); }catch{} }
+else window.scrollTo(0,0);
+$('tutTitle').textContent = st.t;
+$('tutText').textContent = st.x;
+$('tutNext').textContent = st.b;
+$('tutDots').innerHTML = TUT_STEPS.map((_,k)=>'<span'+(k===i?' class="on"':'')+'></span>').join('');
+}
+function tutStart(){
+$('tut').style.display = 'block';
+$('tutCard').style.display = 'block';
+document.body.style.overflow = 'hidden';
+tutShow(0);
+}
+function tutEnd(){
+if (tutTarget) tutTarget.classList.remove('tut-target');
+$('tut').style.display = 'none';
+$('tutCard').style.display = 'none';
+document.body.style.overflow = '';
+store.write('rt_tutorialDone', '1');
+window.scrollTo({top:0});
+}
+$('tutNext').onclick = () => { tutStep + 1 < TUT_STEPS.length ? tutShow(tutStep + 1) : tutEnd(); };
+if (!store.read('rt_tutorialDone')) setTimeout(tutStart, 600);
+
 async function download(blob, name){
-// iPhone/iPad (especially the home-screen app, where downloads barely work):
-// the share sheet is the reliable way — Save to Files, or straight into Mail.
 try {
 const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
 if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
@@ -1753,7 +1747,6 @@ if (e && e.name === 'AbortError') return;   // she closed the share sheet — fi
 const a = document.createElement('a');
 a.href = URL.createObjectURL(blob); a.download = name;
 document.body.appendChild(a); a.click();
-// keep the blob alive long enough for the save dialog (500ms used to kill it)
 setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 120000);
 }
 </script>
