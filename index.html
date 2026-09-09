@@ -128,7 +128,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <body>
 <header>
 <h1>Resume Tailor ✂️</h1>
-<p>Tap a job. Get your resume rewritten for it — ready to send.</p>
+<p>Tap a job. We rewrite your resume for it. Then you send it.</p>
 </header>
 
 <div class="wrap">
@@ -136,7 +136,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <!-- due today -->
 <section class="card" id="dueCard" style="display:none;border-color:rgba(224,138,0,.45)">
 <h2>⏰ Due today</h2>
-<p class="hint">Each email is already written — tap it, add the address, send. Nothing is ever sent for you.</p>
+<p class="hint">The emails are already written. Tap, add the address, send. We never send anything for you.</p>
 <div id="dueList"></div>
 </section>
 
@@ -148,7 +148,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <div class="tabs" id="baseChips" style="display:none;margin:10px -18px 0;padding:0 18px 4px"></div>
 <div id="resumeOpen">
 <h2><span class="step">1</span> Your resume — once</h2>
-<p class="hint">Paste it or upload the file. It stays saved on this phone. You can keep up to 5 versions (support, sales, hospitality…) — the tool tells you which one fits a job best.</p>
+<p class="hint">Paste it or upload the file. It stays on this phone. You can save up to 5 versions — we tell you which one fits each job.</p>
 <input type="text" id="baseName" placeholder="Name this version (e.g. Support)" style="margin-bottom:8px">
 <textarea id="resumeText" placeholder="Paste your whole resume here…"></textarea>
 <div class="row">
@@ -161,9 +161,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <p class="muted" id="fileStatus"></p>
 </div>
 <details class="adv" id="profileDetails">
-<summary>🌍 Profile — your situation and stored answers (tap to edit)</summary>
+<summary>🌍 About you — tap to check it</summary>
 <textarea id="profileText" style="margin-top:10px;min-height:110px"></textarea>
-<p class="muted">Your story in your words. The fields below sharpen it — all of it is used to check each job’s rules and pre-fill answers. Never written onto the resume.</p>
+<p class="muted">Write about yourself here. The boxes below help too. We use this to check each job for you. It never goes on the resume.</p>
 <div class="row" style="align-items:flex-end">
 <label style="flex:1;min-width:130px"><span class="muted">Where you live now</span>
 <input type="text" id="setCountry" placeholder="Kosovo"></label>
@@ -183,7 +183,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <option value="remote only">Remote only</option>
 <option value="hybrid OK">Hybrid OK</option>
 </select></label>
-<label style="flex:1;min-width:130px"><span class="muted">“Low odds” below (% of requirements)</span>
+<label style="flex:1;min-width:130px"><span class="muted">Warn me if I fit less than (%)</span>
 <input type="text" id="setFit" inputmode="numeric" placeholder="60"></label>
 </div>
 <div class="row" style="align-items:flex-end">
@@ -223,7 +223,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:28px;padd
 <!-- STEP 2: pick a job -->
 <section class="card" id="jobCard">
 <h2><span class="step">2</span> Pick a job</h2>
-<p class="hint">Remote customer-service jobs you can work from Kosovo or Spain — best chances first, <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the day you see it — fresh postings convert best, and a tailored resume interviews at about twice the rate of an untailored one.</p>
+<p class="hint">Jobs you can do from Kosovo or Spain. Best ones first. <span style="color:var(--brand)">●</span> = new today. <b>Tap one and it starts.</b> Apply the same day — new jobs give the best chance.</p>
 <div id="feedList"><p class="muted">Finding today’s jobs…</p></div>
 <div class="row" style="margin-top:4px"><button class="btn small" id="feedRefresh">🔄 More jobs</button></div>
 
@@ -296,7 +296,7 @@ stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
 <button class="btn small" id="copyResumeBtn">📋 Copy</button>
 </div>
 <pre class="resume" id="outResume"></pre>
-<p class="muted">Tip: paste into Google Docs / Word, quick look for anything to tweak, then upload as .docx or PDF.</p>
+<p class="muted">Tip: paste into Word or Google Docs, read it once, then upload as .docx or PDF.</p>
 </div>
 
 <div class="pane" id="paneChanges">
@@ -313,25 +313,25 @@ stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
 </div>
 
 <div class="pane" id="paneKit">
-<p class="hint">The form, pre-answered — in the order they ask. Tap Copy, paste, next field.</p>
+<p class="hint">The form answers, ready. Tap Copy, paste, next one.</p>
 <ul class="checks" id="outKit"></ul>
 <p class="muted">Resume is under 📋, cover letter under 💌 — copy those from their tabs when the form asks.</p>
 </div>
 
 <div class="pane" id="paneInterview">
-<p class="hint">What they’ll likely ask for this job — and how to answer with <em>your</em> experience.</p>
+<p class="hint">Questions they will likely ask — with your answers, ready to edit.</p>
 <div id="outQuestions"></div>
 <p class="muted" style="margin-top:14px">Remote-interview basics: quiet spot, camera at eye level, headset in, and have a 30-second “tell me about yourself” ready that ends with why you want <em>this</em> job.</p>
 </div>
 
 <div class="pane" id="paneNote">
-<p class="hint">💬 <b>Quick note</b> — for the “anything else?” box on applications:</p>
+<p class="hint">💬 <b>Short note</b> — for the “anything else?” box:</p>
 <div class="copy-note" id="outNote"></div>
 <div class="row"><button class="btn small good" id="copyNoteBtn">📋 Copy note</button></div>
-<p class="hint" style="margin-top:18px">📄 <b>Full cover letter</b> — when the application asks for one:</p>
+<p class="hint" style="margin-top:18px">📄 <b>Cover letter</b> — if the form asks for one:</p>
 <div class="copy-note" id="outLetter"></div>
 <div class="row"><button class="btn small good" id="copyLetterBtn">📋 Copy cover letter</button></div>
-<p class="hint" style="margin-top:18px">⏰ <b>Follow-up</b> — send this if you haven’t heard back in 5–7 days:</p>
+<p class="hint" style="margin-top:18px">⏰ <b>Follow-up</b> — send if no answer after 5–7 days:</p>
 <div class="copy-note" id="outFollowUp"></div>
 <div class="row"><button class="btn small good" id="copyFollowUpBtn">📋 Copy follow-up</button></div>
 </div>
@@ -346,7 +346,7 @@ stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
 <!-- applications -->
 <section class="card" id="historyCard" style="display:none">
 <h2>🗂 Your applications</h2>
-<p class="hint">Tap ✅ after you apply. Reminders show at the top of this page: hiring-manager email at day 3, follow-ups at day 7 and 14 — the 🔔 buttons put them on your phone’s calendar too.</p>
+<p class="hint">Tap ✅ after you apply. We remind you at day 3, 7 and 14. The 🔔 buttons also put it in your calendar.</p>
 <div id="historyList"></div>
 <div class="row" style="margin-top:10px">
 <button class="btn small" id="csvBtn">⬇️ Export CSV</button>
@@ -357,7 +357,7 @@ stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
 <!-- stats -->
 <section class="card" id="statsCard" style="display:none">
 <h2>📈 Your numbers</h2>
-<p class="hint">Real data from your own applications, next to what the research says is normal.</p>
+<p class="hint">Your own numbers, next to what is normal for everyone.</p>
 <div id="paceGuard"></div>
 <div id="statsTop"></div>
 <div id="whatToChange"></div>
@@ -580,7 +580,7 @@ fetch(API_BASE + '/api/health').then(r=>r.json()).then(h=>{
 if (h.needsCode && !store.read('rt_code')) $('codeCard').style.display='block';
 }).catch(()=>{});
 
-const APP_VERSION = 'v24';
+const APP_VERSION = 'v25';
 document.getElementById('verTag').textContent = APP_VERSION;
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch {} }
 fetch('version.json?ts=' + Date.now(), {cache: 'no-store'}).then(r=>r.json()).then(v=>{
@@ -936,7 +936,7 @@ if (e) { e.vetoes = [...diffVetoes]; writeHistory(h); }
 function renderDiff(){
 if (!diffOps.some(o=>o.t!=='=')) { $('outDiff').innerHTML=''; return; }
 $('outDiff').innerHTML =
-'<p class="hint" style="margin:0 0 4px">🔎 Every edit, word by word — tap ↩︎ to put a line back how it was:</p>' +
+'<p class="hint" style="margin:0 0 4px">🔎 Every change, word by word. Tap ↩︎ to keep your old line:</p>' +
 diffOps.map((o,i)=>{
 if (o.t==='=') return '';
 const v = diffVetoes.has(i);
@@ -1010,20 +1010,20 @@ if (koFails.length || koAsks.length) {
 $('knockoutBanner').style.borderColor = koFails.length ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
 $('knockoutBanner').style.background = koFails.length ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
 $('knockoutBanner').innerHTML =
-(koFails.length ? '<b>🔴 This job has a hard no — read before spending time:</b><br>' + koFails.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '') +
+(koFails.length ? '<b>🔴 Stop — they ask for something you don’t have:</b><br>' + koFails.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '') +
 (koFails.length && koAsks.length ? '<br>' : '') +
-(koAsks.length ? '<b>🟡 They’ll ask — check you can answer yes:</b><br>' + koAsks.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '');
+(koAsks.length ? '<b>🟡 Check these before you apply:</b><br>' + koAsks.map(k=>'• '+esc(k.gate)+' — '+esc(k.note)).join('<br>') : '');
 }
 const fit = r.fit || {};
 $('fitBanner').style.display = (fit.proceed === false) ? 'block' : 'none';
 if (fit.proceed === false) {
 $('fitBanner').style.borderColor = 'rgba(224,138,0,.4)';
-$('fitBanner').innerHTML = '<b>⚖️ Low odds — your time is probably better spent elsewhere.</b><br>' +
-esc(fit.reason || '') + (fit.met_pct != null ? ' <span class="muted">(you meet ~' + clamp(fit.met_pct) + '% of what they ask for)</span>' : '');
+$('fitBanner').innerHTML = '<b>⚖️ This one is hard to get. Maybe skip it.</b><br>' +
+esc(fit.reason || '') + (fit.met_pct != null ? ' <span class="muted">(you have ~' + clamp(fit.met_pct) + '% of what they ask for)</span>' : '');
 }
 const why = r.why_score || {};
 $('outWhy').innerHTML = (why.drivers||[]).length || why.biggest_boost
-? (why.drivers||[]).map(esc).join(' · ') + (why.biggest_boost ? '<br><b style="color:var(--ink)">Biggest boost:</b> ' + esc(why.biggest_boost) : '')
+? (why.drivers||[]).map(esc).join(' · ') + (why.biggest_boost ? '<br><b style="color:var(--ink)">Best next step:</b> ' + esc(why.biggest_boost) : '')
 : '';
 const dnv = r.dnv_fit || {};
 $('dnvBanner').style.display = dnv.status && dnv.note ? 'block' : 'none';
@@ -1031,8 +1031,8 @@ if (dnv.status && dnv.note) {
 const ic = dnv.status === 'MEETS' ? '🟢' : dnv.status === 'BELOW' ? '🔴' : '🟡';
 $('dnvBanner').style.borderColor = dnv.status === 'MEETS' ? 'rgba(31,169,113,.45)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
 $('dnvBanner').style.background = dnv.status === 'MEETS' ? 'rgba(31,169,113,.08)' : dnv.status === 'BELOW' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
-$('dnvBanner').innerHTML = '<b>' + ic + ' Visa income check: ' + esc(dnv.status) + '</b>' +
-(dnv.estimated && dnv.monthly_eur_estimate ? ' <span class="muted">(≈€' + esc(dnv.monthly_eur_estimate) + '/mo — an estimate, not from the posting)</span>' : '') +
+$('dnvBanner').innerHTML = '<b>' + ic + ' ' + (dnv.status==='MEETS' ? 'Pay is enough for your visa' : dnv.status==='BELOW' ? 'Pay is too low for your visa' : 'Pay not listed — visa check unclear') + '</b>' +
+(dnv.estimated && dnv.monthly_eur_estimate ? ' <span class="muted">(≈€' + esc(dnv.monthly_eur_estimate) + '/mo — our guess, not their number)</span>' : '') +
 '<br>' + esc(dnv.note);
 }
 renderDiff();
@@ -1044,12 +1044,12 @@ const slop = r._slop;
 $('slopBanner').style.display = slop ? 'block' : 'none';
 if (slop) {
 $('slopBanner').style.borderColor = 'rgba(224,138,0,.4)';
-$('slopBanner').innerHTML = '<b>🤖 Heads up — parts of this still sound AI-written' +
-(slop.score != null ? ' (' + esc(slop.score) + '/10)' : '') + '.</b> Reword the flagged bits in your own voice before sending:<br>' +
+$('slopBanner').innerHTML = '<b>🤖 Some lines sound like a robot wrote them' +
+(slop.score != null ? ' (' + esc(slop.score) + '/10)' : '') + '.</b> Change these lines into your own words before you send:<br>' +
 (slop.flags||[]).slice(0,6).map(f=>'• '+esc(f.where)+': '+esc(f.reason)).join('<br>');
 }
 $('outAsk').innerHTML = (r.questions_for_her||[]).length
-? '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>✍️ Answer these and tailor again — it gets stronger:</b><br>' +
+? '<div class="miss" style="border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)"><b>✍️ Answer these, then tap Tailor again. It gets better:</b><br>' +
 r.questions_for_her.map(q=>'• '+esc(q)).join('<br>') + '</div>'
 : '';
 
@@ -1061,14 +1061,14 @@ r.tips.map(t=>'<div class="miss" style="border-color:rgba(124,92,255,.35);backgr
 $('outChanges').innerHTML = (r.changes||[]).map(c =>
 '<div class="chg"><b>'+esc(c.what)+'</b><span>'+esc(c.why)+'</span></div>').join('') || '<p class="muted">No changes listed.</p>';
 $('outKeywords').innerHTML = (r.keywords_added||[]).length
-? '<p class="hint" style="margin:0 0 4px">Keywords now in your resume:</p>' + r.keywords_added.map(k=>'<span class="kw">'+esc(k)+'</span>').join('')
+? '<p class="hint" style="margin:0 0 4px">Words from the job, now in your resume:</p>' + r.keywords_added.map(k=>'<span class="kw">'+esc(k)+'</span>').join('')
 : '';
 $('outMissing').innerHTML = (r.missing_keywords||[]).length
-? '<p class="hint" style="margin:0 0 4px">Couldn’t honestly claim — nothing was made up:</p>' +
+? '<p class="hint" style="margin:0 0 4px">They also want these. You don’t have them yet — so we did not lie:</p>' +
 r.missing_keywords.map(m=>'<div class="miss"><b>'+esc(m.term)+'</b> — '+esc(m.suggestion)+'</div>').join('')
 : '';
 $('outGaps').innerHTML = (r.gaps||[]).length
-? '<p class="hint" style="margin:0 0 4px">Gaps you can close — fastest honest fixes:</p>' +
+? '<p class="hint" style="margin:0 0 4px">Things you can learn fast (free):</p>' +
 r.gaps.map(g=>'<div class="miss"><b>'+esc(g.need)+'</b> — '+esc(g.fix)+(g.time?' <span class="muted">('+esc(g.time)+')</span>':'')+
 (g.link?'<br><a href="'+esc(g.link)+'" target="_blank" rel="noopener" style="color:var(--brand)">Free course →</a>':'')+'</div>').join('')
 : '';
@@ -1107,9 +1107,9 @@ const loc = r.location_fit || {};
 $('locationBanner').style.display = loc.note ? 'block' : 'none';
 if (loc.note) {
 const icon = loc.level === 'good' ? '🟢' : loc.level === 'blocked' ? '🔴' : '🟡';
-const head = loc.level === 'good' ? 'Location: looks open to you'
-: loc.level === 'blocked' ? 'Location problem — probably skip this one'
-: 'Location: check before spending time';
+const head = loc.level === 'good' ? 'Location: OK for you'
+: loc.level === 'blocked' ? 'Location problem — better skip this one'
+: 'Location: check first';
 $('locationBanner').style.borderColor = loc.level === 'good' ? 'rgba(31,169,113,.45)' : loc.level === 'blocked' ? 'rgba(214,69,80,.5)' : 'rgba(224,138,0,.4)';
 $('locationBanner').style.background = loc.level === 'good' ? 'rgba(31,169,113,.08)' : loc.level === 'blocked' ? 'rgba(214,69,80,.08)' : 'rgba(224,138,0,.08)';
 const lvVerdict = (r.location_visa && r.location_visa.verdict) || '';
@@ -1719,12 +1719,12 @@ new Notification('✉️ Due today', { body: due[0].e.label + (due.length>1 ? ' 
 })();
 
 const TUT_STEPS = [
-{t:'Welcome! 👋', x:'This tool rewrites your resume for each job — honestly, using only what you really did — and helps you apply, follow up, and track everything. Two minutes to show you around.', b:'Show me'},
-{t:'Step 1 — your resume, once', x:'Paste your resume here (or upload the file). It stays saved on this phone, so you only do this one time. You can keep up to 5 versions later.', el:'resumeCard', b:'Next'},
-{t:'Your profile', x:'Tap “Profile” inside step 1 and check it once: your country, languages, and your standard answers. Every job check uses this — it’s what keeps everything honest and correct for you.', el:'resumeCard', b:'Next'},
-{t:'Step 2 — pick a job', x:'Fresh remote jobs picked for you, best first. ⚡ means apply today. 🌍 means it works from Kosovo. Tap any job and the rewrite starts by itself — or paste any job link in the box.', el:'jobCard', b:'Next'},
-{t:'What you get', x:'A rewritten resume (watch it type!), a match score, any deal-breakers up top, ready-to-copy form answers, a cover letter, and interview answers. Copy, download as Word, done.', b:'Next'},
-{t:'After you apply', x:'Tap “✅ I applied” on the result. The tool reminds you at day 3, 7 and 14 — with the emails already written for you. That’s it. Good luck! 🍀', b:'Let’s go ✂️'},
+{t:'Welcome! 👋', x:'This tool rewrites your resume for each job. It only uses true things about you. It also helps you apply and follow up. Let me show you — 2 minutes.', b:'Show me'},
+{t:'Step 1 — your resume, once', x:'Put your resume here one time. It stays on this phone. Done.', el:'resumeCard', b:'Next'},
+{t:'Your profile', x:'Tap “About you” in step 1. Check your country, your languages, your answers. We use this to check every job for you.', el:'resumeCard', b:'Next'},
+{t:'Step 2 — pick a job', x:'New jobs picked for you, best first. ⚡ = apply today. 🌍 = works from Kosovo. Tap a job and it starts. Or paste any job link.', el:'jobCard', b:'Next'},
+{t:'What you get', x:'You get: a new resume, a score, warnings if the job is wrong for you, form answers, and a cover letter. Copy it, download it, send it.', b:'Next'},
+{t:'After you apply', x:'After you apply, tap “✅ I applied”. We remind you when to write again — the emails are already written. That’s it. Good luck! 🍀', b:'Let’s go ✂️'},
 ];
 let tutStep = 0, tutTarget = null;
 function tutShow(i){
